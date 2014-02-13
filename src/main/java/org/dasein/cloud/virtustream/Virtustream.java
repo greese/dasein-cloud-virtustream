@@ -140,7 +140,7 @@ public class Virtustream extends AbstractCloud {
                 }
                 return uuid;
             } catch (Throwable t) {
-                logger.error("Error testing CloudSigma credentials for " + ctx.getAccountNumber() + ": " + t.getMessage());
+                logger.error("Error testing Virtustream credentials for " + ctx.getAccountNumber() + ": " + t.getMessage());
                 return null;
             }
         } finally {
