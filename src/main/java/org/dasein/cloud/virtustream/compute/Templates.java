@@ -125,9 +125,13 @@ public class Templates extends AbstractImageSupport{
                 }
 
             }
-
+            if (templateId == null) {
+                logger.error("Template created without error but no new id returned");
+                throw new CloudException("Template created without error but no new id returned");
+            }
             MachineImage img = getImage(templateId);
             if( img == null ) {
+                logger.error("Machine image job completed successfully, but no image " + templateId + " exists.");
                 throw new CloudException("Machine image job completed successfully, but no image " + templateId + " exists.");
             }
 
@@ -338,7 +342,9 @@ public class Templates extends AbstractImageSupport{
                 JSONObject json;
                 try {
                     json = new JSONObject(obj);
-                    provider.parseTaskID(json);
+                    if (provider.parseTaskID(json) == null) {
+                        logger.warn("No confirmation of RemoveTemplate task completion but no error either");
+                    }
                 }
                 catch (JSONException e) {
                     logger.error(e);

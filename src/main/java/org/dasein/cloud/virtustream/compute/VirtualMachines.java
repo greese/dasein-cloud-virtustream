@@ -39,6 +39,7 @@ import org.dasein.cloud.network.RawAddress;
 import org.dasein.cloud.util.APITrace;
 import org.dasein.cloud.virtustream.Virtustream;
 import org.dasein.cloud.virtustream.VirtustreamMethod;
+import org.dasein.util.CalendarWrapper;
 import org.dasein.util.uom.storage.Gigabyte;
 import org.dasein.util.uom.storage.Kilobyte;
 import org.dasein.util.uom.storage.Megabyte;
@@ -106,7 +107,9 @@ public class VirtualMachines extends AbstractVMSupport {
                 //Reconfigure VM
                 //may need to stop vm first
                 VmState state = vm.getCurrentState();
+                boolean restart = false;
                 if (!state.equals(VmState.STOPPED)) {
+                    restart = true;
                     stop(vmId, true);
                     vm = getVirtualMachine(vmId);
                     while (!vm.getCurrentState().equals(VmState.STOPPED)) {
@@ -135,12 +138,17 @@ public class VirtualMachines extends AbstractVMSupport {
                 if (obj != null && obj.length() > 0) {
                     try {
                         json = new JSONObject(obj);
-                        provider.parseTaskID(json);
+                        if (provider.parseTaskID(json) == null) {
+                            logger.warn("No confirmation of ReconfigureVM task completion but no error either");
+                        }
                     }
                     catch (JSONException e) {
                         logger.error(e);
                         throw new InternalException("Unable to parse JSON "+e.getMessage());
                     }
+                }
+                if (restart) {
+                    start(vmId);
                 }
             }
 
@@ -162,6 +170,7 @@ public class VirtualMachines extends AbstractVMSupport {
                         //find a suitable storage location for the hard disk
                         String storageId = findAvailableStorage(capacityKB, dc);
                         if (storageId == null) {
+                            logger.error("No available storage resource in datacenter "+dc.getName());
                             throw new CloudException("No available storage resource in datacenter "+dc.getName());
                         }
 
@@ -181,7 +190,9 @@ public class VirtualMachines extends AbstractVMSupport {
                             if (obj != null && obj.length() > 0) {
                                 try {
                                     JSONObject response = new JSONObject(obj);
-                                    provider.parseTaskID(response);
+                                    if (provider.parseTaskID(response) == null) {
+                                        logger.warn("No confirmation of AddDisk task completion but no error either");
+                                    }
                                 }
                                 catch (JSONException e) {
                                     logger.error(e);
@@ -206,7 +217,9 @@ public class VirtualMachines extends AbstractVMSupport {
                             if (obj != null && obj.length() > 0) {
                                 try {
                                     JSONObject response = new JSONObject(obj);
-                                    provider.parseTaskID(response);
+                                    if (provider.parseTaskID(response) == null) {
+                                        logger.warn("No confirmation of ReconfigureDisk task completion but no error either");
+                                    }
                                 }
                                 catch (JSONException e) {
                                     logger.error(e);
@@ -259,6 +272,10 @@ public class VirtualMachines extends AbstractVMSupport {
                     logger.error(e);
                     throw new InternalException("Unable to parse JSON "+e.getMessage());
                 }
+            }
+            if (newVMId == null) {
+                logger.error("Vm was cloned without error but new id not returned");
+                throw new CloudException("Vm was cloned without error but new id not returned");
             }
             return getVirtualMachine(newVMId);
         }
@@ -379,6 +396,7 @@ public class VirtualMachines extends AbstractVMSupport {
                 String description = withLaunchOptions.getDescription();
                 String networkId = withLaunchOptions.getVlanId();
                 if (networkId == null) {
+                    logger.error("Network is mandatory when launching vms in virtustream");
                     throw new InternalException("Network is mandatory when launching vms in virtustream");
                 }
                 String tenantId = getContext().getAccountNumber();
@@ -416,6 +434,7 @@ public class VirtualMachines extends AbstractVMSupport {
                 //find a suitable storage location for the hard disk
                 String storageId = findAvailableStorage(capacityKB, dc);
                 if (storageId == null) {
+                    logger.error("No available storage resource in datacenter "+dc.getName());
                     throw new CloudException("No available storage resource in datacenter "+dc.getName());
                 }
                 JSONObject disk = new JSONObject();
@@ -433,6 +452,7 @@ public class VirtualMachines extends AbstractVMSupport {
                 // get suitable resource pool
                 String resourcePoolId = findAvailableResourcePool(dc);
                 if (resourcePoolId == null) {
+                    logger.error("No available resource pool in datacenter "+dc.getName());
                     throw new CloudException("No available resource pool in datacenter "+dc.getName());
                 }
 
@@ -458,6 +478,7 @@ public class VirtualMachines extends AbstractVMSupport {
                         return getVirtualMachine(vmId);
                     }
                 }
+                logger.error("Vm was launched without error but new id not returned");
                 throw new CloudException("Vm was launched without error but new id not returned");
             }
             catch (JSONException e) {
@@ -578,7 +599,9 @@ public class VirtualMachines extends AbstractVMSupport {
                 String obj = method.postString("/VirtualMachine/"+vmId+"/RebootOS", "", REBOOT_VIRTUAL_MACHINE);
                 if (obj != null && obj.length()> 0) {
                     JSONObject json = new JSONObject(obj);
-                    provider.parseTaskID(json);
+                    if (provider.parseTaskID(json) == null) {
+                        logger.warn("No confirmation of RebootVM task completion but no error either");
+                    }
                 }
             }
             catch (JSONException e) {
@@ -600,7 +623,9 @@ public class VirtualMachines extends AbstractVMSupport {
                 String obj = method.postString("/VirtualMachine/"+vmId+"/PowerOn", "", RESUME_VIRTUAL_MACHINE);
                 if (obj != null && obj.length()> 0) {
                     JSONObject json = new JSONObject(obj);
-                    provider.parseTaskID(json);
+                    if (provider.parseTaskID(json) == null) {
+                        logger.warn("No confirmation of ResumeVM task completion but no error either");
+                    }
                 }
             }
             catch (JSONException e) {
@@ -622,10 +647,13 @@ public class VirtualMachines extends AbstractVMSupport {
                 String obj = method.postString("/VirtualMachine/"+vmId+"/PowerOn", "", START_VIRTUAL_MACHINE);
                 if (obj != null && obj.length()> 0) {
                     JSONObject json = new JSONObject(obj);
-                    provider.parseTaskID(json);
+                    if (provider.parseTaskID(json) == null) {
+                        logger.warn("No confirmation of StartVM task completion but no error either");
+                    }
                 }
             }
             catch (JSONException e) {
+                logger.error(e);
                 throw new InternalException("Unable to parse JSONObject "+e.getMessage());
             }
         }
@@ -644,7 +672,9 @@ public class VirtualMachines extends AbstractVMSupport {
                     String obj = method.postString("/VirtualMachine/"+vmId+"/PowerOff", "", STOP_VIRTUAL_MACHINE);
                     if (obj != null && obj.length()> 0) {
                         JSONObject json = new JSONObject(obj);
-                        provider.parseTaskID(json);
+                        if (provider.parseTaskID(json) == null) {
+                            logger.warn("No confirmation of StopVM task completion but no error either");
+                        }
                     }
                 }
                 else {
@@ -652,7 +682,9 @@ public class VirtualMachines extends AbstractVMSupport {
                     if (obj != null && obj.length() > 0) {
                         JSONObject json = new JSONObject(obj);
                         try {
-                            provider.parseTaskID(json);
+                            if (provider.parseTaskID(json) == null) {
+                                logger.warn("No confirmation of ShutdownOS task completion but no error either");
+                            }
                         }
                         catch (CloudException ignore) {
                             logger.error("Unable to shutdown os: "+ignore.getMessage()+" trying force stop");
@@ -695,7 +727,9 @@ public class VirtualMachines extends AbstractVMSupport {
                 String obj = method.postString("/VirtualMachine/"+vmId+"/Suspend", "", SUSPEND_VIRTUAL_MACHINE);
                 if (obj != null && obj.length()> 0) {
                     JSONObject json = new JSONObject(obj);
-                    provider.parseTaskID(json);
+                    if (provider.parseTaskID(json) == null) {
+                        logger.warn("No confirmation of SuspendVM task completion but no error either");
+                    }
                 }
             }
             catch (JSONException e) {
@@ -722,12 +756,16 @@ public class VirtualMachines extends AbstractVMSupport {
             if (!vm.getCurrentState().equals(VmState.STOPPED)) {
                 stop(vmId, true);
                 vm = getVirtualMachine(vmId);
-                while (vm.getCurrentState() != VmState.STOPPED) {
+                long timeout = System.currentTimeMillis()+(CalendarWrapper.MINUTE * 5);
+                while (timeout > System.currentTimeMillis()) {
                     try {
                         Thread.sleep(15000L);
                     }
                     catch (InterruptedException ignore) {}
                     vm = getVirtualMachine(vmId);
+                    if (vm.getCurrentState().equals(VmState.STOPPED)) {
+                        break;
+                    }
                 }
             }
             if (vm.getCurrentState().equals(VmState.STOPPED)) {
@@ -735,7 +773,9 @@ public class VirtualMachines extends AbstractVMSupport {
                 if (obj != null && obj.length() > 0) {
                     try {
                         JSONObject json = new JSONObject(obj);
-                        provider.parseTaskID(json);
+                        if (provider.parseTaskID(json) == null) {
+                            logger.warn("No confirmation of TerminateVM task completion but no error either");
+                        }
                     }
                     catch (JSONException e) {
                         logger.error(e);
@@ -745,6 +785,7 @@ public class VirtualMachines extends AbstractVMSupport {
                 }
             }
             else {
+                logger.error("Server not stopping so can't be deleted");
                 throw new CloudException("Server not stopping so can't be deleted");
             }
         }
@@ -1018,6 +1059,7 @@ public class VirtualMachines extends AbstractVMSupport {
                     }
                 }
                 if (map.isEmpty()) {
+                    logger.error("No available storage in datacenter "+dataCenter.getName()+" - require "+capacityKB+"KB");
                     throw new CloudException("No available storage in datacenter "+dataCenter.getName()+" - require "+capacityKB+"KB");
                 }
                 if (map.size() == 1) {
@@ -1068,6 +1110,7 @@ public class VirtualMachines extends AbstractVMSupport {
                     }
                 }
                 if (firstResourcePool == null) {
+                    logger.error("No available resource pool in datacenter "+dataCenter.getName());
                     throw new CloudException("No available resource pool in datacenter "+dataCenter.getName());
                 }
                 // just return first resource pool found if none are currently in use
