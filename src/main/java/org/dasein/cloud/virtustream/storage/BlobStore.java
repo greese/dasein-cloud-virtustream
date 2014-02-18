@@ -483,7 +483,9 @@ public class BlobStore extends AbstractBlobStoreSupport{
                 String obj = method.postString("/Storage/DeleteFile", json.toString(), REMOVE_OBJECT);
                 if (obj != null && obj.length() > 0) {
                     JSONObject response = new JSONObject(obj);
-                    provider.parseTaskID(response);
+                    if (provider.parseTaskID(response) == null) {
+                        logger.warn("No confirmation of RemoveObject task completion but no error either");
+                    }
                 }
             }
             catch (JSONException e) {
@@ -516,7 +518,9 @@ public class BlobStore extends AbstractBlobStoreSupport{
                 String obj = method.postString("/Storage/RenameStorage", json.toString(), RENAME_BUCKET);
                 if (obj != null && obj.length() > 0) {
                     JSONObject response = new JSONObject(obj);
-                    provider.parseTaskID(response);
+                    if (provider.parseTaskID(response) == null) {
+                        logger.warn("No confirmation of RenameBucket task completion but no error either");
+                    }
                 }
 
                 return newName;
@@ -542,9 +546,11 @@ public class BlobStore extends AbstractBlobStoreSupport{
         APITrace.begin(provider, UPLOAD_FILE);
         try {
             if( bucket == null ) {
+                logger.error("No bucket was specified for this request");
                 throw new OperationNotSupportedException("No bucket was specified for this request");
             }
             if( !exists(bucket) ) {
+                logger.error("Creating new bucket not supported for cloud");
                 throw new OperationNotSupportedException("Creating new bucket not supported for cloud");
             }
 
@@ -553,6 +559,7 @@ public class BlobStore extends AbstractBlobStoreSupport{
                 put(bucket, objectName, sourceFile);
                 return getObject(bucket, objectName);
             }
+            logger.error("Not got a session id from cloud for upload file transfer operation");
             throw new CloudException("Not got a session id from cloud for upload file transfer operation");
         }
         finally {
@@ -568,11 +575,13 @@ public class BlobStore extends AbstractBlobStoreSupport{
         APITrace.begin(provider, DOWNLOAD_FILE);
         try {
             if( bucket == null ) {
+                logger.error("No bucket was specified");
                 throw new CloudException("No bucket was specified");
             }
 
             getFileTransferSession();
             if (sessionID == null) {
+                logger.error("Unable to get session id for download file transfer op");
                 throw new CloudException("Unable to get session id for download file transfer op");
             }
 
@@ -612,15 +621,14 @@ public class BlobStore extends AbstractBlobStoreSupport{
                     JSONObject ft = response.getJSONObject("FileTransfer");
                     fileTransferID = ft.getString("FileTransferID");
                     fileSize=ft.getLong("FileSizeBytes");
-                    provider.parseStorageTaskID(response);
+                    if (provider.parseStorageTaskID(response) == null) {
+                        logger.error("No confirmation of DownloadFile task completion but no error either");
+                    }
                 }
 
 
                 if (fileTransferID != null) {
                     input = getBlocks(fileTransferID, fileSize);
-                    if( bucket == null ) {
-                        throw new CloudException("No bucket was specified");
-                    }
                     try {
                         method.postString("/fileService/"+fileTransferID+"/CompleteDownload", "", sessionID, DOWNLOAD_FILE);
                     }
@@ -632,7 +640,8 @@ public class BlobStore extends AbstractBlobStoreSupport{
                     }
                 }
                 else {
-                    throw new InternalException("Unable to transfer file as inititation failed");
+                    logger.error("Unable to transfer file as initiation failed");
+                    throw new InternalException("Unable to transfer file as initiation failed");
                 }
             }
             catch (JSONException e) {
@@ -642,6 +651,7 @@ public class BlobStore extends AbstractBlobStoreSupport{
 
 
             if( input == null ) {
+                logger.error("No such file: " + bucket + "/" + object);
                 throw new CloudException("No such file: " + bucket + "/" + object);
             }
             try {
@@ -718,6 +728,7 @@ public class BlobStore extends AbstractBlobStoreSupport{
         if (sessionID == null) {
             getFileTransferSession();
             if (sessionID == null) {
+                logger.error("Unable to get session id for upload file transfer op");
                 throw new CloudException("Unable to get session id for upload file transfer op");
             }
         }
@@ -774,10 +785,13 @@ public class BlobStore extends AbstractBlobStoreSupport{
                 String response = method.postString("/fileService/"+fileTransferID+"/CompleteUpload", "", sessionID, UPLOAD_FILE);
                 if (response != null && response.length() > 0) {
                     JSONObject node = new JSONObject(response);
-                    provider.parseStorageTaskID(node);
+                    if (provider.parseStorageTaskID(node) == null) {
+                        logger.warn("No confirmation of CompleteUpload task completion but no error either");
+                    }
                 }
             }
             else {
+                logger.error("Unable to transfer file as initiation failed");
                 throw new InternalException("Unable to transfer file as initiation failed");
             }
         }
@@ -945,6 +959,7 @@ public class BlobStore extends AbstractBlobStoreSupport{
 
                 }
                 if (storageRegionID == null || storageID == null)  {
+                    logger.error("Storage with name "+storageName+" not found");
                     throw new InternalException("Storage with name "+storageName+" not found");
                 }
             }

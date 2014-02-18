@@ -69,6 +69,7 @@ public class VirtustreamDataCenterServices implements DataCenterServices {
                 }
             }
             catch (JSONException e) {
+                logger.error(e);
                 throw new InternalException("Unable to parse json response "+e.getMessage());
             }
 
@@ -108,6 +109,7 @@ public class VirtustreamDataCenterServices implements DataCenterServices {
                 return null;
             }
             catch (JSONException e) {
+                logger.error(e);
                 throw new InternalException("Unable to parse JSONObject "+e.getMessage());
             }
         }
@@ -124,6 +126,7 @@ public class VirtustreamDataCenterServices implements DataCenterServices {
             ProviderContext ctx = provider.getContext();
 
             if( ctx == null ) {
+                logger.error("No context was set for this request");
                 throw new CloudException("No context was set for this request");
             }
             Collection<DataCenter> dcs = (Collection<DataCenter>)cache.get(ctx);
@@ -147,6 +150,7 @@ public class VirtustreamDataCenterServices implements DataCenterServices {
                     cache.put(ctx, dcs);
                 }
                 catch (JSONException e) {
+                    logger.error(e);
                     throw new InternalException("Unable to parse JSONObject "+e.getMessage());
                 }
             }
@@ -165,6 +169,7 @@ public class VirtustreamDataCenterServices implements DataCenterServices {
             ProviderContext ctx = provider.getContext();
 
             if( ctx == null ) {
+                logger.error("No context was set for this request");
                 throw new CloudException("No context was set for this request");
             }
             Collection<Region> regions = (Collection<Region>)cache.get(ctx);
@@ -187,6 +192,7 @@ public class VirtustreamDataCenterServices implements DataCenterServices {
                     cache.put(ctx, regions);
                 }
                 catch (JSONException e) {
+                    logger.error(e);
                     throw new InternalException("Unable to parse JSONObject "+e.getMessage());
                 }
             }
@@ -224,6 +230,7 @@ public class VirtustreamDataCenterServices implements DataCenterServices {
             return null;
         }
         catch (JSONException e) {
+            logger.error(e);
             throw new InternalException("Unable to parse JSONObject "+e.getMessage());
         }
     }
@@ -250,6 +257,7 @@ public class VirtustreamDataCenterServices implements DataCenterServices {
             return null;
         }
         catch (JSONException e) {
+            logger.error(e);
             throw new InternalException("Unable to parse JSONObject "+e.getMessage());
         }
     }

@@ -170,12 +170,14 @@ public class Virtustream extends AbstractCloud {
         try {
             try {
                 VirtustreamMethod method = new VirtustreamMethod(this);
+                int count = 0;
                 while (true) {
                     try {
                         Thread.sleep(15000L);
                     }
                     catch (InterruptedException ignore) {}
                     String body = method.getString("/TaskInfo/"+taskInfoID, WAIT_FOR_TASK);
+                    count++;
                     if (body != null && body.length() > 0) {
                         JSONObject json = new JSONObject(body);
                         int state = json.getInt("State");
@@ -201,7 +203,12 @@ public class Virtustream extends AbstractCloud {
                         }
                     }
                     else {
-                        return "Task not found";
+                        if (count <= 4) {
+                            logger.error("Task id "+taskInfoID+" not found by Virtustream");
+                            logger.error("Attempts remaining "+(5-count));
+                            continue;
+                        }
+                        return null;
                     }
                 }
             }

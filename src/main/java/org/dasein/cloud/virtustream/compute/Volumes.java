@@ -212,7 +212,9 @@ public class Volumes extends AbstractVolumeSupport {
                 String obj = method.postString("/VirtualMachine/RemoveDisk", body, REMOVE_VOLUMES);
                 if (obj != null && obj.length() > 0) {
                     JSONObject response = new JSONObject(obj);
-                    provider.parseTaskID(response);
+                    if (provider.parseTaskID(response) == null) {
+                        logger.warn("No confirmation of RemoveVolume task completion but no error either");
+                    }
                 }
             }
             catch (JSONException e) {
