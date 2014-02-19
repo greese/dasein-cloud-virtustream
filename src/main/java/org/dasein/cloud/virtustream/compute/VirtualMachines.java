@@ -26,6 +26,7 @@ import org.dasein.cloud.Requirement;
 import org.dasein.cloud.ResourceStatus;
 import org.dasein.cloud.compute.AbstractVMSupport;
 import org.dasein.cloud.compute.Architecture;
+import org.dasein.cloud.compute.MachineImage;
 import org.dasein.cloud.compute.Platform;
 import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.compute.VirtualMachineProduct;
@@ -57,6 +58,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Random;
 
 public class VirtualMachines extends AbstractVMSupport {
     static private final Logger logger = Logger.getLogger(VirtualMachines.class);
@@ -416,6 +418,10 @@ public class VirtualMachines extends AbstractVMSupport {
                     capacityKB = 20971520;
                 }  */
                 capacityKB = 20971520;
+                //get the device key for the template
+                MachineImage img = provider.getComputeServices().getImageSupport().getImage(templateId);
+                int deviceKey = Integer.parseInt(img.getTag("DeviceKey").toString());
+                String ostype = (img.getPlatform().equals(Platform.WINDOWS)) ? "Windows" : "Linux";
 
                 int cpuCore;
                 long ramAllocated;
@@ -440,6 +446,7 @@ public class VirtualMachines extends AbstractVMSupport {
                 JSONObject disk = new JSONObject();
                 disk.put("StorageID", storageId);
                 disk.put("CapacityKB", capacityKB);
+                disk.put("DeviceKey", deviceKey);
                 JSONArray disks = new JSONArray();
                 disks.put(disk);
 
@@ -456,6 +463,22 @@ public class VirtualMachines extends AbstractVMSupport {
                     throw new CloudException("No available resource pool in datacenter "+dc.getName());
                 }
 
+              /*  //customisation of password and ip address
+                JSONArray networksArray = new JSONArray();
+                JSONObject networkCustom = new JSONObject();
+                networkCustom.put("NicNumber", 1);
+                networkCustom.put("IpAddressMode", 1); //dhcp
+                networksArray.put(networkCustom);
+
+                String password = generatePassword();
+
+                JSONObject customization = new JSONObject();
+                customization.put("AdministratorPassword", password);
+                customization.put("NetworkCustomizations", networksArray);
+                customization.put("GuestOsType", ostype);
+                */
+
+
                 // create json request
                 JSONObject vmJson = new JSONObject();
                 vmJson.put("Description", description);
@@ -467,6 +490,7 @@ public class VirtualMachines extends AbstractVMSupport {
                 vmJson.put("SourceTemplateID", templateId);
                 vmJson.put("TenantID", tenantId);
                 vmJson.put("CustomerDefinedName", name);
+              //  vmJson.put("CustomizationSpecification", customization);
 
                 body = vmJson.toString();
 
@@ -475,7 +499,9 @@ public class VirtualMachines extends AbstractVMSupport {
                     JSONObject json = new JSONObject(obj);
                     String vmId = provider.parseTaskID(json);
                     if (vmId != null) {
-                        return getVirtualMachine(vmId);
+                        VirtualMachine vm = getVirtualMachine(vmId);
+                      //  vm.setRootPassword(password);
+                        return vm;
                     }
                 }
                 logger.error("Vm was launched without error but new id not returned");
@@ -489,6 +515,29 @@ public class VirtualMachines extends AbstractVMSupport {
         finally {
             APITrace.end();
         }
+    }
+
+    static private final Random random = new Random();
+    private @Nonnull String generatePassword() {
+        int len = 8 + random.nextInt(5);
+        StringBuilder password = new StringBuilder();
+
+        while( password.length() < len ) {
+            char c = (char)random.nextInt(255);
+
+            if( (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ) {
+                if( c != 'I' && c != 'i' && c != 'o' && c != 'O' && c != 'l' ) {
+                    password.append(c);
+                }
+            }
+            else if( c >= '2' && c <='9' ) {
+                password.append(c);
+            }
+            else if( c == '%' || c == '@' || c == '#' || c == '$' || c == '[' || c == ']' ) {
+                password.append(c);
+            }
+        }
+        return password.toString();
     }
 
     private transient ArrayList<VirtualMachineProduct> cachedProducts;

@@ -418,6 +418,13 @@ public class Templates extends AbstractImageSupport{
                 }
             }
 
+            if (node.has("Disks") && !node.isNull("Disks")) {
+                JSONArray disks = node.getJSONArray("Disks");
+                JSONObject disk = disks.getJSONObject(0);
+                int deviceKey = disk.getInt("DeviceKey");
+                properties.put("DeviceKey", Integer.toString(deviceKey));
+            }
+
             if (regionId == null) {
                 logger.warn("Unable to find region id for template "+imageId);
                 regionId = getContext().getRegionId();
