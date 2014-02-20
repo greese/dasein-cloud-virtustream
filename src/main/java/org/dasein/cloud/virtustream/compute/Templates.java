@@ -52,6 +52,7 @@ import java.util.Locale;
 public class Templates extends AbstractImageSupport{
     static private final Logger logger = Logger.getLogger(Templates.class);
     static private final String CAPTURE_IMAGE   =   "Image.captureImage";
+    static private final String DISCONNECT_NIC  =   "Image.disconnectNic";
     static private final String GET_IMAGE       =   "Image.getImage";
     static private final String IS_SUBSCRIBED   =   "Image.isSubscribed";
     static private final String LIST_IMAGES     =   "Image.listImages";
@@ -110,6 +111,29 @@ public class Templates extends AbstractImageSupport{
             VirtualMachine newVM = support.clone(vmid, currentVM.getProviderDataCenterId(), templateName, description, powerOn, currentVM.getProviderFirewallIds());
 
             VirtustreamMethod method = new VirtustreamMethod(provider);
+
+            //disconnect clone from any networks
+            JSONObject nic = new JSONObject();
+            try {
+                nic.put("VirtualMachineID", newVM.getProviderVirtualMachineId());
+                nic.put("VirtualMachineNicID", newVM.getTag("VirtualMachineNicID"));
+            }
+            catch (JSONException ex) {
+                logger.error(ex);
+            }
+
+            String response = method.postString("/VirtualMachine/DisconnectNic", nic.toString(), DISCONNECT_NIC);
+            if (response != null && response.length() > 0) {
+                try {
+                    JSONObject json = new JSONObject(response);
+                    provider.parseTaskID(json);
+                }
+                catch (JSONException e) {
+                    logger.error(e);
+                    throw new InternalException("Unable to parse JSON "+e.getMessage());
+                }
+
+            }
 
             String obj = method.postString("/VirtualMachine/MarkAsTemplate", newVM.getProviderVirtualMachineId(), CAPTURE_IMAGE);
 
