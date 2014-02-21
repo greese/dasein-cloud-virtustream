@@ -467,7 +467,7 @@ public class VirtualMachines extends AbstractVMSupport {
                 }
 
                 //customisation of password and ip address and a whole bunch of mandatory params
-                JSONObject customization = new JSONObject();
+               /* JSONObject customization = new JSONObject();
                 String password = generatePassword();
                 ProviderContext ctx = getContext();
                 Properties prop = ctx.getCustomProperties();
@@ -503,7 +503,7 @@ public class VirtualMachines extends AbstractVMSupport {
                     JSONArray networksArray = new JSONArray();
                     JSONObject networkCustom = new JSONObject();
                     networkCustom.put("NicNumber", 1);
-                    networkCustom.put("IpAddressMode", 2); //dhcp
+                    networkCustom.put("IpAddressMode", 1); //dhcp
                     networksArray.put(networkCustom);
 
                     JSONArray dnsSearchPaths = new JSONArray();
@@ -516,7 +516,7 @@ public class VirtualMachines extends AbstractVMSupport {
                     customization.put("DnsSearchPaths", dnsSearchPaths);
                     customization.put("TimeZoneLocation", timezoneLocation);
                     customization.put("ComputerNameOption", 3);  //use vm name
-                }
+                }  */
 
                 //***************************************************
 
@@ -531,7 +531,7 @@ public class VirtualMachines extends AbstractVMSupport {
                 vmJson.put("SourceTemplateID", templateId);
                 vmJson.put("TenantID", tenantId);
                 vmJson.put("CustomerDefinedName", name);
-                vmJson.put("CustomizationSpecification", customization);
+              //  vmJson.put("CustomizationSpecification", customization);
 
                 body = vmJson.toString();
 
@@ -541,7 +541,7 @@ public class VirtualMachines extends AbstractVMSupport {
                     String vmId = provider.parseTaskID(json);
                     if (vmId != null) {
                         VirtualMachine vm = getVirtualMachine(vmId);
-                        vm.setRootPassword(password);
+                     //   vm.setRootPassword(password);
                         return vm;
                     }
                 }
