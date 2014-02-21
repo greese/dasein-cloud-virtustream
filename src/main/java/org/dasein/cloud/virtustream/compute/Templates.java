@@ -122,7 +122,7 @@ public class Templates extends AbstractImageSupport{
                 logger.error(ex);
             }
 
-            String response = method.postString("/VirtualMachine/DisconnectNic", nic.toString(), DISCONNECT_NIC);
+            String response = method.postString("/VirtualMachine/RemoveNic", nic.toString(), DISCONNECT_NIC);
             if (response != null && response.length() > 0) {
                 try {
                     JSONObject json = new JSONObject(response);
@@ -132,8 +132,10 @@ public class Templates extends AbstractImageSupport{
                     logger.error(e);
                     throw new InternalException("Unable to parse JSON "+e.getMessage());
                 }
-
             }
+
+            //list vm details to check nic was disconnected properly
+            support.getVirtualMachine(newVM.getProviderVirtualMachineId());
 
             String obj = method.postString("/VirtualMachine/MarkAsTemplate", newVM.getProviderVirtualMachineId(), CAPTURE_IMAGE);
 
