@@ -983,35 +983,21 @@ public class VirtualMachines extends AbstractVMSupport {
                 }
             }
 
-            if (json.has("VmHostName") && !json.isNull("VmHostName")) {
-                String addr = json.getString("VmHostName");
-                boolean pub = false;
-
-                if( !addr.startsWith("10.") && !addr.startsWith("192.168.") ) {
-                    if( addr.startsWith("172.") ) {
-                        String[] nums = addr.split("\\.");
-
-                        if( nums.length != 4 ) {
-                            pub = true;
-                        }
-                        else {
-                            try {
-                                int x = Integer.parseInt(nums[1]);
-
-                                if( x < 16 || x > 31 ) {
-                                    pub = true;
-                                }
-                            }
-                            catch( NumberFormatException ignore ) {
-                                // ignore
-                            }
-                        }
-                    }
-                    else {
-                        pub = true;
-                    }
+            if (json.has("Nics") && !json.isNull("Nics")) {
+                JSONArray nics = json.getJSONArray("Nics");
+                JSONObject nic = nics.getJSONObject(0);
+                if (nic.has("NetworkID") && !nic.isNull("NetworkID")) {
+                    vm.setProviderVlanId(nic.getString("NetworkID"));
                 }
-                if( pub ) {
+                if (nic.has("VirtualMachineNicID") && !nic.isNull("VirtualMachineNicID")) {
+                    vm.setTag("VirtualMachineNicID", nic.getString("VirtualMachineNicID"));
+                }
+            }
+
+            if (json.has("IPAddress") && !json.isNull("IPAddress")) {
+                String addr = json.getString("IPAddress");
+                boolean isPub = isPublicAddress(addr);
+                if( isPub ) {
                     vm.setPublicAddresses(new RawAddress(addr));
                     if( vm.getPublicDnsAddress() == null ) {
                         vm.setPublicDnsAddress(addr);
@@ -1022,17 +1008,6 @@ public class VirtualMachines extends AbstractVMSupport {
                     if( vm.getPrivateDnsAddress() == null ) {
                         vm.setPrivateDnsAddress(addr);
                     }
-                }
-            }
-
-            if (json.has("Nics") && !json.isNull("Nics")) {
-                JSONArray nics = json.getJSONArray("Nics");
-                JSONObject nic = nics.getJSONObject(0);
-                if (nic.has("NetworkID") && !nic.isNull("NetworkID")) {
-                    vm.setProviderVlanId(nic.getString("NetworkID"));
-                }
-                if (nic.has("VirtualMachineNicID") && !nic.isNull("VirtualMachineNicID")) {
-                    vm.setTag("VirtualMachineNicID", nic.getString("VirtualMachineNicID"));
                 }
             }
 
@@ -1217,5 +1192,33 @@ public class VirtualMachines extends AbstractVMSupport {
         finally {
             APITrace.end();
         }
+    }
+
+    private boolean isPublicAddress(@Nonnull String addr) {
+        if( !addr.startsWith("10.") && !addr.startsWith("192.168.") ) {
+            if( addr.startsWith("172.") ) {
+                String[] nums = addr.split("\\.");
+
+                if( nums.length != 4 ) {
+                    return true;
+                }
+                else {
+                    try {
+                        int x = Integer.parseInt(nums[1]);
+
+                        if( x < 16 || x > 31 ) {
+                            return true;
+                        }
+                    }
+                    catch( NumberFormatException ignore ) {
+                        // ignore
+                    }
+                }
+            }
+            else {
+                return true;
+            }
+        }
+        return false;
     }
 }
