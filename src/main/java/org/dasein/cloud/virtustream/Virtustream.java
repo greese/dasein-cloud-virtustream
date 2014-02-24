@@ -198,8 +198,9 @@ public class Virtustream extends AbstractCloud {
                             }
                             //at this point just return the full error message
                             String error = json.getString("Errors");
+                            String tmperror = error.substring(0, error.indexOf(":\""));
                             logger.error(error);
-                            throw new CloudException("CloudException: "+error);
+                            throw new CloudException("CloudException: "+tmperror);
                         }
                     }
                     else {

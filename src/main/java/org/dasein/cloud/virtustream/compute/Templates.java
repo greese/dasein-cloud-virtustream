@@ -52,6 +52,7 @@ import java.util.Locale;
 public class Templates extends AbstractImageSupport{
     static private final Logger logger = Logger.getLogger(Templates.class);
     static private final String CAPTURE_IMAGE   =   "Image.captureImage";
+    static private final String DISCONNECT_NIC  =   "Image.disconnectNic";
     static private final String GET_IMAGE       =   "Image.getImage";
     static private final String IS_SUBSCRIBED   =   "Image.isSubscribed";
     static private final String LIST_IMAGES     =   "Image.listImages";
@@ -110,6 +111,31 @@ public class Templates extends AbstractImageSupport{
             VirtualMachine newVM = support.clone(vmid, currentVM.getProviderDataCenterId(), templateName, description, powerOn, currentVM.getProviderFirewallIds());
 
             VirtustreamMethod method = new VirtustreamMethod(provider);
+
+            //disconnect clone from any networks
+            JSONObject nic = new JSONObject();
+            try {
+                nic.put("VirtualMachineID", newVM.getProviderVirtualMachineId());
+                nic.put("VirtualMachineNicID", newVM.getTag("VirtualMachineNicID"));
+            }
+            catch (JSONException ex) {
+                logger.error(ex);
+            }
+
+            String response = method.postString("/VirtualMachine/RemoveNic", nic.toString(), DISCONNECT_NIC);
+            if (response != null && response.length() > 0) {
+                try {
+                    JSONObject json = new JSONObject(response);
+                    provider.parseTaskID(json);
+                }
+                catch (JSONException e) {
+                    logger.error(e);
+                    throw new InternalException("Unable to parse JSON "+e.getMessage());
+                }
+            }
+
+            //list vm details to check nic was disconnected properly
+            support.getVirtualMachine(newVM.getProviderVirtualMachineId());
 
             String obj = method.postString("/VirtualMachine/MarkAsTemplate", newVM.getProviderVirtualMachineId(), CAPTURE_IMAGE);
 
@@ -401,6 +427,10 @@ public class Templates extends AbstractImageSupport{
 
             if (node.has("TenantID") && !node.isNull("TenantID")) {
                 ownerId = node.getString("TenantID");
+            }
+            else {
+                //no owner id so this template may not be stable
+                return null;
             }
             if (node.has("RegionID") && !node.isNull("RegionID")) {
                 regionId = node.getString("RegionID");

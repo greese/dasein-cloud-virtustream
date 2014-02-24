@@ -22,6 +22,7 @@ package org.dasein.cloud.virtustream.compute;
 import org.apache.log4j.Logger;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
+import org.dasein.cloud.ProviderContext;
 import org.dasein.cloud.Requirement;
 import org.dasein.cloud.ResourceStatus;
 import org.dasein.cloud.compute.AbstractVMSupport;
@@ -58,7 +59,9 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Random;
+import java.util.TimeZone;
 
 public class VirtualMachines extends AbstractVMSupport {
     static private final Logger logger = Logger.getLogger(VirtualMachines.class);
@@ -463,21 +466,59 @@ public class VirtualMachines extends AbstractVMSupport {
                     throw new CloudException("No available resource pool in datacenter "+dc.getName());
                 }
 
-              /*  //customisation of password and ip address
-                JSONArray networksArray = new JSONArray();
-                JSONObject networkCustom = new JSONObject();
-                networkCustom.put("NicNumber", 1);
-                networkCustom.put("IpAddressMode", 1); //dhcp
-                networksArray.put(networkCustom);
-
+                //customisation of password and ip address and a whole bunch of mandatory params
+               /* JSONObject customization = new JSONObject();
                 String password = generatePassword();
+                ProviderContext ctx = getContext();
+                Properties prop = ctx.getCustomProperties();
+                String timezoneLocation =  prop.getProperty("TimeZoneID");
+                if (timezoneLocation == null) {
+                    timezoneLocation = TimeZone.getDefault().getID();
+                }
 
-                JSONObject customization = new JSONObject();
-                customization.put("AdministratorPassword", password);
-                customization.put("NetworkCustomizations", networksArray);
-                customization.put("GuestOsType", ostype);
-                */
+                if (ostype.equalsIgnoreCase("windows")) {
+                    JSONArray networksArray = new JSONArray();
+                    JSONObject networkCustom = new JSONObject();
+                    networkCustom.put("NicNumber", 1);
+                    networkCustom.put("IpAddressMode", 1); //dhcp
+                    networksArray.put(networkCustom);
 
+                    customization.put("AdministratorPassword", password);
+                    customization.put("UseCustomNetworkSettings", "true");
+                    customization.put("NetworkCustomizations", networksArray);
+                    customization.put("GuestOsType", ostype);
+                    customization.put("GuestOsOwnerName", "Owner");
+                    customization.put("GuestOsOwnerOrganization", "Org") ;
+                    customization.put("DomainName", "Virtustream");
+                    customization.put("TimeZone", timezoneLocation);
+                    customization.put("DomainAdminUsername", "Administrator");
+                    customization.put("DomainAdminPassword", password);
+                    customization.put("ComputerNameOption", 3);  //use vm name
+                    //todo this seems to be necessary to get windows servers working from the template they provide
+                    //but doing this in such a hidden way to the user is a bad idea
+                    //check what we should really do but to let windows testing occur lets keep it in for now
+                    customization.put("GenerateNewSid", "true");
+                }
+                else {
+                    JSONArray networksArray = new JSONArray();
+                    JSONObject networkCustom = new JSONObject();
+                    networkCustom.put("NicNumber", 1);
+                    networkCustom.put("IpAddressMode", 1); //dhcp
+                    networksArray.put(networkCustom);
+
+                    JSONArray dnsSearchPaths = new JSONArray();
+                    dnsSearchPaths.put("xstream.local");
+
+                    customization.put("UseCustomNetworkSettings", "true");
+                    customization.put("NetworkCustomizations", networksArray);
+                    customization.put("GuestOsType", ostype);
+                    customization.put("DomainName", "Virtustream");
+                    customization.put("DnsSearchPaths", dnsSearchPaths);
+                    customization.put("TimeZoneLocation", timezoneLocation);
+                    customization.put("ComputerNameOption", 3);  //use vm name
+                }  */
+
+                //***************************************************
 
                 // create json request
                 JSONObject vmJson = new JSONObject();
@@ -500,7 +541,7 @@ public class VirtualMachines extends AbstractVMSupport {
                     String vmId = provider.parseTaskID(json);
                     if (vmId != null) {
                         VirtualMachine vm = getVirtualMachine(vmId);
-                      //  vm.setRootPassword(password);
+                     //   vm.setRootPassword(password);
                         return vm;
                     }
                 }
@@ -942,35 +983,21 @@ public class VirtualMachines extends AbstractVMSupport {
                 }
             }
 
-            if (json.has("VmHostName") && !json.isNull("VmHostName")) {
-                String addr = json.getString("VmHostName");
-                boolean pub = false;
-
-                if( !addr.startsWith("10.") && !addr.startsWith("192.168.") ) {
-                    if( addr.startsWith("172.") ) {
-                        String[] nums = addr.split("\\.");
-
-                        if( nums.length != 4 ) {
-                            pub = true;
-                        }
-                        else {
-                            try {
-                                int x = Integer.parseInt(nums[1]);
-
-                                if( x < 16 || x > 31 ) {
-                                    pub = true;
-                                }
-                            }
-                            catch( NumberFormatException ignore ) {
-                                // ignore
-                            }
-                        }
-                    }
-                    else {
-                        pub = true;
-                    }
+            if (json.has("Nics") && !json.isNull("Nics")) {
+                JSONArray nics = json.getJSONArray("Nics");
+                JSONObject nic = nics.getJSONObject(0);
+                if (nic.has("NetworkID") && !nic.isNull("NetworkID")) {
+                    vm.setProviderVlanId(nic.getString("NetworkID"));
                 }
-                if( pub ) {
+                if (nic.has("VirtualMachineNicID") && !nic.isNull("VirtualMachineNicID")) {
+                    vm.setTag("VirtualMachineNicID", nic.getString("VirtualMachineNicID"));
+                }
+            }
+
+            if (json.has("IPAddress") && !json.isNull("IPAddress")) {
+                String addr = json.getString("IPAddress");
+                boolean isPub = isPublicAddress(addr);
+                if( isPub ) {
                     vm.setPublicAddresses(new RawAddress(addr));
                     if( vm.getPublicDnsAddress() == null ) {
                         vm.setPublicDnsAddress(addr);
@@ -981,14 +1008,6 @@ public class VirtualMachines extends AbstractVMSupport {
                     if( vm.getPrivateDnsAddress() == null ) {
                         vm.setPrivateDnsAddress(addr);
                     }
-                }
-            }
-
-            if (json.has("Nics") && !json.isNull("Nics")) {
-                JSONArray nics = json.getJSONArray("Nics");
-                JSONObject nic = nics.getJSONObject(0);
-                if (nic.has("NetworkID") && !nic.isNull("NetworkID")) {
-                    vm.setProviderVlanId(nic.getString("NetworkID"));
                 }
             }
 
@@ -1173,5 +1192,33 @@ public class VirtualMachines extends AbstractVMSupport {
         finally {
             APITrace.end();
         }
+    }
+
+    private boolean isPublicAddress(@Nonnull String addr) {
+        if( !addr.startsWith("10.") && !addr.startsWith("192.168.") ) {
+            if( addr.startsWith("172.") ) {
+                String[] nums = addr.split("\\.");
+
+                if( nums.length != 4 ) {
+                    return true;
+                }
+                else {
+                    try {
+                        int x = Integer.parseInt(nums[1]);
+
+                        if( x < 16 || x > 31 ) {
+                            return true;
+                        }
+                    }
+                    catch( NumberFormatException ignore ) {
+                        // ignore
+                    }
+                }
+            }
+            else {
+                return true;
+            }
+        }
+        return false;
     }
 }
