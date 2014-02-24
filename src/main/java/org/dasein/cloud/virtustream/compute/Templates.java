@@ -428,6 +428,10 @@ public class Templates extends AbstractImageSupport{
             if (node.has("TenantID") && !node.isNull("TenantID")) {
                 ownerId = node.getString("TenantID");
             }
+            else {
+                //no owner id so this template may not be stable
+                return null;
+            }
             if (node.has("RegionID") && !node.isNull("RegionID")) {
                 regionId = node.getString("RegionID");
             }
