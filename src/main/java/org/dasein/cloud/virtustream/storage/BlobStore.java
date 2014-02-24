@@ -753,14 +753,14 @@ public class BlobStore extends AbstractBlobStoreSupport{
             String path;
             if (position>0) {
                 tmp = bucket.substring(0, bucket.indexOf("/"));
-                path = bucket.substring(bucket.indexOf("/"), bucket.lastIndexOf("/")+1);
+                path = bucket.substring(bucket.indexOf("/"));
                 if (path.equals("")) {
-                    path = "/";
+                    path = "";
                 }
             }
             else {
                 tmp = bucket;
-                path = "/";
+                path = "";
             }
             //path = path.replaceAll("//", "\\");
 
@@ -769,7 +769,7 @@ public class BlobStore extends AbstractBlobStoreSupport{
             json = new JSONObject();
             json.put("Command", "BeginUpload");
             json.put("StorageID", storageID);
-            json.put("FilePath", path+objectName);
+            json.put("FilePath", path+"/"+objectName);
             json.put("FileSizeBytes", file.length());
 
 
