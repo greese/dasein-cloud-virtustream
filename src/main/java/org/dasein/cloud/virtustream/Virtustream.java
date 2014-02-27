@@ -33,12 +33,15 @@ import org.json.JSONObject;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Iterator;
 
 public class Virtustream extends AbstractCloud {
     static private final Logger logger = getLogger(Virtustream.class);
 
+    static private final String DELETE_SESSION  = "deleteSession";
+    static private final String GET_SESSION     = "getSession";
     static private final String TEST_CONTEXT    = "testContext";
     static private final String WAIT_FOR_TASK   = "waitForTask";
 
@@ -167,7 +170,10 @@ public class Virtustream extends AbstractCloud {
 
     public String waitForTaskCompletion(@Nonnull String taskInfoID) throws InternalException, CloudException {
         APITrace.begin(this, WAIT_FOR_TASK);
+        String sessionID = null;
         try {
+            //get session id
+            sessionID = getSession();
             try {
                 VirtustreamMethod method = new VirtustreamMethod(this);
                 int count = 0;
@@ -176,7 +182,7 @@ public class Virtustream extends AbstractCloud {
                         Thread.sleep(15000L);
                     }
                     catch (InterruptedException ignore) {}
-                    String body = method.getString("/TaskInfo/"+taskInfoID, WAIT_FOR_TASK);
+                    String body = method.getSessionString("/TaskInfo/" + taskInfoID, sessionID, WAIT_FOR_TASK);
                     count++;
                     if (body != null && body.length() > 0) {
                         JSONObject json = new JSONObject(body);
@@ -219,6 +225,7 @@ public class Virtustream extends AbstractCloud {
             }
         }
         finally {
+            deleteSession(sessionID);
             APITrace.end();
         }
     }
@@ -235,5 +242,51 @@ public class Virtustream extends AbstractCloud {
             logger.error(e);
             throw new InternalException("Unable to parse JSONObject "+e.getMessage());
         }
+    }
+
+    public String getSession() throws InternalException, CloudException {
+        APITrace.begin(this, GET_SESSION);
+        try {
+            VirtustreamMethod method = new VirtustreamMethod(this);
+            JSONObject json = new JSONObject();
+            try {
+                ProviderContext ctx = getContext();
+                try {
+                    String userName = new String(ctx.getAccessPublic(), "utf-8");
+                    String password = new String(ctx.getAccessPrivate(), "utf-8");
+
+                    json.put("Username", userName);
+                    json.put("Password", password);
+                } catch (UnsupportedEncodingException e) {
+                    throw new InternalException(e);
+                }
+            }
+            catch (JSONException e) {
+                logger.error(e);
+                throw new InternalException("Unable to parse JSON "+e.getMessage());
+            }
+            String obj = method.postSessionString("/session", json.toString(), null, GET_SESSION);
+            String sessionID = null;
+            if (obj != null && obj.length()>0) {
+                try {
+                    JSONObject node = new JSONObject(obj);
+                    sessionID = node.getString("SessionID");
+                }
+                catch (JSONException e) {
+                    logger.error(e);
+                    throw new InternalException("Unable to parse JSON "+e.getMessage());
+                }
+            }
+            return sessionID;
+        }
+        finally {
+            APITrace.end();
+        }
+    }
+
+    public void deleteSession(@Nonnull String sessionID) throws CloudException, InternalException {
+        //delete the session
+        VirtustreamMethod method = new VirtustreamMethod(this);
+        method.deleteSessionString("/session/"+sessionID, sessionID, DELETE_SESSION);
     }
 }
