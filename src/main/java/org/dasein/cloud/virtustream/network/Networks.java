@@ -25,6 +25,7 @@ import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.ResourceStatus;
 import org.dasein.cloud.network.AbstractVLANSupport;
+import org.dasein.cloud.network.InternetGateway;
 import org.dasein.cloud.network.IPVersion;
 import org.dasein.cloud.network.VLAN;
 import org.dasein.cloud.network.VLANState;
@@ -36,7 +37,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Locale;
 
 public class Networks extends AbstractVLANSupport {
@@ -98,6 +101,18 @@ public class Networks extends AbstractVLANSupport {
         }
     }
 
+    @Nullable
+    @Override
+    public String getAttachedInternetGatewayId(@Nonnull String vlanId) throws CloudException, InternalException {
+        return null;  //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    @Nullable
+    @Override
+    public InternetGateway getInternetGatewayById(@Nonnull String gatewayId) throws CloudException, InternalException {
+        return null;  //To change body of implemented methods use File | Settings | File Templates.
+    }
+
     @Override
     public boolean isSubscribed() throws CloudException, InternalException {
         APITrace.begin(provider, IS_SUBSCRIBED);
@@ -119,6 +134,12 @@ public class Networks extends AbstractVLANSupport {
     @Override
     public boolean isVlanDataCenterConstrained() throws CloudException, InternalException {
         return true;
+    }
+
+    @Nonnull
+    @Override
+    public Collection<InternetGateway> listInternetGateways(@Nullable String vlanId) throws CloudException, InternalException {
+        return null;  //To change body of implemented methods use File | Settings | File Templates.
     }
 
     @Nonnull
@@ -193,6 +214,11 @@ public class Networks extends AbstractVLANSupport {
         finally {
             APITrace.end();
         }
+    }
+
+    @Override
+    public void removeInternetGatewayById(@Nonnull String id) throws CloudException, InternalException {
+        //To change body of implemented methods use File | Settings | File Templates.
     }
 
     private VLAN toVlan(@Nonnull JSONObject json) throws InternalException, CloudException {
