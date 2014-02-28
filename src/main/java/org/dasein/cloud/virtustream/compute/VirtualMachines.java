@@ -301,12 +301,6 @@ public class VirtualMachines extends AbstractVMSupport {
 
     @Nullable
     @Override
-    public VMScalingCapabilities describeVerticalScalingCapabilities() throws CloudException, InternalException {
-        return VMScalingCapabilities.getInstance(false, true, Requirement.NONE, Requirement.REQUIRED);
-    }
-
-    @Nullable
-    @Override
     public VirtualMachineProduct getProduct(@Nonnull String productId) throws InternalException, CloudException {
         String[] parts = productId.split(":");
         int cpuCount, ramInMb;
@@ -329,12 +323,6 @@ public class VirtualMachines extends AbstractVMSupport {
         product.setDescription(product.getName());
         product.setRootVolumeSize(new Storage<Gigabyte>(20, Storage.GIGABYTE));
         return product;
-    }
-
-    @Nonnull
-    @Override
-    public String getProviderTermForServer(@Nonnull Locale locale) {
-        return "VM";
     }
 
     @Nullable
@@ -365,18 +353,6 @@ public class VirtualMachines extends AbstractVMSupport {
         finally {
             APITrace.end();
         }
-    }
-
-    @Nonnull
-    @Override
-    public Requirement identifyRootVolumeRequirement() throws CloudException, InternalException {
-        return Requirement.REQUIRED;
-    }
-
-    @Nonnull
-    @Override
-    public Requirement identifyVlanRequirement() throws CloudException, InternalException {
-        return Requirement.REQUIRED;
     }
 
     @Override
@@ -611,14 +587,6 @@ public class VirtualMachines extends AbstractVMSupport {
         return products;
     }
 
-    @Override
-    public Iterable<Architecture> listSupportedArchitectures() throws InternalException, CloudException {
-        ArrayList<Architecture> list = new ArrayList<Architecture>();
-        list.add(Architecture.I32);
-        list.add(Architecture.I64);
-        return list;
-    }
-
     @Nonnull
     @Override
     public Iterable<ResourceStatus> listVirtualMachineStatus() throws InternalException, CloudException {
@@ -801,21 +769,6 @@ public class VirtualMachines extends AbstractVMSupport {
         finally {
             APITrace.end();
         }
-    }
-
-    @Override
-    public boolean supportsPauseUnpause(@Nonnull VirtualMachine vm) {
-        return false;
-    }
-
-    @Override
-    public boolean supportsStartStop(@Nonnull VirtualMachine vm) {
-        return true;
-    }
-
-    @Override
-    public boolean supportsSuspendResume(@Nonnull VirtualMachine vm) {
-        return true;
     }
 
     @Override
