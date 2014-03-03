@@ -28,6 +28,7 @@ import org.dasein.cloud.network.AbstractVLANSupport;
 import org.dasein.cloud.network.InternetGateway;
 import org.dasein.cloud.network.IPVersion;
 import org.dasein.cloud.network.VLAN;
+import org.dasein.cloud.network.VLANCapabilities;
 import org.dasein.cloud.network.VLANState;
 import org.dasein.cloud.util.APITrace;
 import org.dasein.cloud.virtustream.Virtustream;
@@ -55,6 +56,14 @@ public class Networks extends AbstractVLANSupport {
     public Networks(@Nonnull Virtustream provider) {
         super(provider);
         this.provider = provider;
+    }
+
+    private transient volatile NetworkCapabilities capabilities;@Override
+    public VLANCapabilities getCapabilities() throws CloudException, InternalException {
+        if( capabilities == null ) {
+            capabilities = new NetworkCapabilities(provider);
+        }
+        return capabilities;
     }
 
     @Nonnull
