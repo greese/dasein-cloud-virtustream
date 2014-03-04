@@ -88,7 +88,7 @@ public class VMCapabilities extends AbstractCapabilities<Virtustream> implements
 
     @Override
     public int getCostFactor(@Nonnull VmState state) throws CloudException, InternalException {
-        return 0;  //To change body of implemented methods use File | Settings | File Templates.
+        return 0;
     }
 
     @Nonnull
@@ -101,6 +101,12 @@ public class VMCapabilities extends AbstractCapabilities<Virtustream> implements
     @Override
     public VMScalingCapabilities getVerticalScalingCapabilities() throws CloudException, InternalException {
         return VMScalingCapabilities.getInstance(false, true, Requirement.NONE, Requirement.REQUIRED);
+    }
+
+    @Nonnull
+    @Override
+    public Requirement identifyDataCenterLaunchRequirement() throws CloudException, InternalException {
+        return Requirement.REQUIRED;
     }
 
     @Nonnull
@@ -130,6 +136,12 @@ public class VMCapabilities extends AbstractCapabilities<Virtustream> implements
     @Nonnull
     @Override
     public Requirement identifyStaticIPRequirement() throws CloudException, InternalException {
+        return Requirement.NONE;
+    }
+
+    @Nonnull
+    @Override
+    public Requirement identifySubnetRequirement() throws CloudException, InternalException {
         return Requirement.NONE;
     }
 
