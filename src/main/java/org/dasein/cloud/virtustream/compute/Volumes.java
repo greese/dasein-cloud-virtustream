@@ -26,6 +26,7 @@ import org.dasein.cloud.ResourceStatus;
 import org.dasein.cloud.compute.AbstractVolumeSupport;
 import org.dasein.cloud.compute.Platform;
 import org.dasein.cloud.compute.Volume;
+import org.dasein.cloud.compute.VolumeCapabilities;
 import org.dasein.cloud.compute.VolumeFilterOptions;
 import org.dasein.cloud.compute.VolumeFormat;
 import org.dasein.cloud.compute.VolumeState;
@@ -59,6 +60,15 @@ public class Volumes extends AbstractVolumeSupport {
     public Volumes(@Nonnull Virtustream provider) {
         super(provider);
         this.provider = provider;
+    }
+
+    private transient volatile VSVolumeCapabilities capabilities;
+    @Override
+    public VolumeCapabilities getCapabilities() throws CloudException, InternalException {
+        if( capabilities == null ) {
+            capabilities = new VSVolumeCapabilities(provider);
+        }
+        return capabilities;
     }
 
     @Nullable
@@ -142,6 +152,7 @@ public class Volumes extends AbstractVolumeSupport {
     transient String vmID = null;
     transient String dataCenterID = null;
     transient String regionID = null;
+    transient Platform platfrom = null;
     @Nonnull
     @Override
     public Iterable<Volume> listVolumes(@Nullable VolumeFilterOptions options) throws InternalException, CloudException {
@@ -165,7 +176,7 @@ public class Volumes extends AbstractVolumeSupport {
                             JSONObject diskJson = disks.getJSONObject(j);
 
                             // create Volume object
-                            Volume volume = toVolume(vmID, regionID, dataCenterID, diskJson);
+                            Volume volume = toVolume(vmID, platfrom, regionID, dataCenterID, diskJson);
                             if (volume != null && (options == null || options.matches(volume))) {
                                 list.add(volume);
                             }
@@ -244,6 +255,7 @@ public class Volumes extends AbstractVolumeSupport {
                     regionID = r.getString("RegionID");
                 }
             }
+            platfrom = Platform.guess(json.getString("OS"));
         }
         catch (JSONException e) {
             logger.error(e);
@@ -251,7 +263,7 @@ public class Volumes extends AbstractVolumeSupport {
         }
     }
 
-    private Volume toVolume(@Nonnull String vmID, @Nonnull String regionID, @Nonnull String dataCenterID, @Nonnull JSONObject json) throws InternalException, CloudException {
+    private Volume toVolume(@Nonnull String vmID, @Nonnull Platform platform, @Nonnull String regionID, @Nonnull String dataCenterID, @Nonnull JSONObject json) throws InternalException, CloudException {
         try {
             Volume volume = new Volume();
             volume.setCurrentState(VolumeState.AVAILABLE);
@@ -272,11 +284,48 @@ public class Volumes extends AbstractVolumeSupport {
             Storage<Kilobyte> size = new Storage<Kilobyte>(diskSize, Storage.KILOBYTE);
             volume.setSize((Storage<Gigabyte>)size.convertTo(Storage.GIGABYTE));
 
+            String deviceId = json.getString("UnitNumber");
+            volume.setDeviceId(toDeviceID(deviceId, platform.equals(Platform.WINDOWS)));
+            int diskNum = json.getInt("DiskNumber");
+            if (diskNum == 1) {
+                volume.setRootVolume(true);
+            }
             return volume;
         }
         catch (JSONException e) {
             logger.error(e);
             throw new InternalException("Unable to parse JSONObject "+e.getMessage());
+        }
+    }
+
+    private @Nonnull String toDeviceID(@Nonnull String deviceNumber, boolean isWindows) {
+        if (deviceNumber == null){
+            return null;
+        }
+        if (!isWindows){
+            if( deviceNumber.equals("0") ) { return "/dev/xvda"; }
+            else if( deviceNumber.equals("1") ) { return "/dev/xvdb"; }
+            else if( deviceNumber.equals("2") ) { return "/dev/xvdc"; }
+            else if( deviceNumber.equals("4") ) { return "/dev/xvde"; }
+            else if( deviceNumber.equals("5") ) { return "/dev/xvdf"; }
+            else if( deviceNumber.equals("6") ) { return "/dev/xvdg"; }
+            else if( deviceNumber.equals("7") ) { return "/dev/xvdh"; }
+            else if( deviceNumber.equals("8") ) { return "/dev/xvdi"; }
+            else if( deviceNumber.equals("9") ) { return "/dev/xvdj"; }
+            else { return "/dev/xvdj"; }
+        }
+        else{
+            if( deviceNumber.equals("0") ) { return "hda"; }
+            else if( deviceNumber.equals("1") ) { return "hdb"; }
+            else if( deviceNumber.equals("2") ) { return "hdc"; }
+            else if( deviceNumber.equals("3") ) { return "hdd"; }
+            else if( deviceNumber.equals("4") ) { return "hde"; }
+            else if( deviceNumber.equals("5") ) { return "hdf"; }
+            else if( deviceNumber.equals("6") ) { return "hdg"; }
+            else if( deviceNumber.equals("7") ) { return "hdh"; }
+            else if( deviceNumber.equals("8") ) { return "hdi"; }
+            else if( deviceNumber.equals("9") ) { return "hdj"; }
+            else { return "hdj"; }
         }
     }
 }
