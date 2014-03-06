@@ -26,12 +26,11 @@ import org.dasein.cloud.InternalException;
 import org.dasein.cloud.ResourceStatus;
 import org.dasein.cloud.compute.AbstractImageSupport;
 import org.dasein.cloud.compute.Architecture;
+import org.dasein.cloud.compute.ImageCapabilities;
 import org.dasein.cloud.compute.ImageClass;
 import org.dasein.cloud.compute.ImageCreateOptions;
 import org.dasein.cloud.compute.ImageFilterOptions;
 import org.dasein.cloud.compute.MachineImage;
-import org.dasein.cloud.compute.MachineImageFormat;
-import org.dasein.cloud.compute.MachineImageType;
 import org.dasein.cloud.compute.MachineImageState;
 import org.dasein.cloud.compute.Platform;
 import org.dasein.cloud.compute.VirtualMachine;
@@ -65,6 +64,15 @@ public class Templates extends AbstractImageSupport{
     public Templates(@Nonnull Virtustream provider) {
         super(provider);
         this.provider = provider;
+    }
+
+    private transient volatile TemplateCapabilities capabilities;
+    @Override
+    public ImageCapabilities getCapabilities() throws CloudException, InternalException {
+        if( capabilities == null ) {
+            capabilities = new TemplateCapabilities(provider);
+        }
+        return capabilities;
     }
 
     @Nullable
@@ -271,15 +279,6 @@ public class Templates extends AbstractImageSupport{
 
     @Nonnull
     @Override
-    public Iterable<MachineImageFormat> listSupportedFormats() throws CloudException, InternalException {
-        ArrayList<MachineImageFormat> list = new ArrayList<MachineImageFormat>();
-        list.add(MachineImageFormat.VMDK);
-        list.add(MachineImageFormat.OVF);
-        return list;
-    }
-
-    @Nonnull
-    @Override
     public Iterable<MachineImage> listImages(@Nullable ImageFilterOptions options) throws CloudException, InternalException {
         APITrace.begin(provider, GET_IMAGE);
         try {
@@ -345,16 +344,6 @@ public class Templates extends AbstractImageSupport{
 
     @Override
     public boolean supportsCustomImages() throws CloudException, InternalException {
-        return true;
-    }
-
-    @Override
-    public boolean supportsImageCapture(@Nonnull MachineImageType type) throws CloudException, InternalException {
-        return true;
-    }
-
-    @Override
-    public boolean supportsPublicLibrary(@Nonnull ImageClass cls) throws CloudException, InternalException {
         return true;
     }
 
