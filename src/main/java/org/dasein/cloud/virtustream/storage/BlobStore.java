@@ -64,7 +64,6 @@ public class BlobStore extends AbstractBlobStoreSupport{
 
     static private final String CANCEL_DOWNLOAD                 =   "Blob.cancelDownload";
     static private final String CANCEL_UPLOAD                   =   "Blob.cancelUpload";
-    static private final String DELETE_FILE_TRANSFER_SESSION    =   "Blob.deleteFileTransferSession";
     static private final String DOWNLOAD_FILE                   =   "Blob.downloadFile";
     static private final String CHECK_EXISTS                    =   "Blob.exists";
     static private final String FIND_STORAGE_ID                 =   "BlobStore.findStorageId";
@@ -561,18 +560,10 @@ public class BlobStore extends AbstractBlobStoreSupport{
                 throw new OperationNotSupportedException("Creating new bucket not supported for cloud");
             }
 
-            getFileTransferSession();
-            if (sessionID != null) {
-                put(bucket, objectName, sourceFile);
-                return getObject(bucket, objectName);
-            }
-            logger.error("Not got a session id from cloud for upload file transfer operation");
-            throw new CloudException("Not got a session id from cloud for upload file transfer operation");
+            put(bucket, objectName, sourceFile);
+            return getObject(bucket, objectName);
         }
         finally {
-            //delete the session
-            VirtustreamStorageMethod method = new VirtustreamStorageMethod(provider);
-            method.deleteString("/session/"+sessionID, sessionID, DELETE_FILE_TRANSFER_SESSION);
             APITrace.end();
         }
     }
@@ -586,19 +577,13 @@ public class BlobStore extends AbstractBlobStoreSupport{
                 throw new CloudException("No bucket was specified");
             }
 
-            getFileTransferSession();
-            if (sessionID == null) {
-                logger.error("Unable to get session id for download file transfer op");
-                throw new CloudException("Unable to get session id for download file transfer op");
-            }
-
             InputStream input = null;
 
             JSONObject json = null;
             String fileTransferID = null;
             long fileSize = 0;
             try {
-                VirtustreamStorageMethod method = new VirtustreamStorageMethod(provider);
+                VirtustreamMethod method = new VirtustreamMethod(provider);
                 int position = bucket.indexOf("/");
                 String tmp;
                 String path;
@@ -622,7 +607,7 @@ public class BlobStore extends AbstractBlobStoreSupport{
                 json.put("StorageID", storageID);
                 json.put("FilePath", path);
 
-                String obj = method.postString("/fileService", json.toString(), sessionID, DOWNLOAD_FILE);
+                String obj = method.postString("/fileService", json.toString(), DOWNLOAD_FILE);
                 if (obj != null && obj.length()>0) {
                     JSONObject response = new JSONObject(obj);
                     JSONObject ft = response.getJSONObject("FileTransfer");
@@ -637,12 +622,12 @@ public class BlobStore extends AbstractBlobStoreSupport{
                 if (fileTransferID != null) {
                     input = getBlocks(fileTransferID, fileSize);
                     try {
-                        method.postString("/fileService/"+fileTransferID+"/CompleteDownload", "", sessionID, DOWNLOAD_FILE);
+                        method.postString("/fileService/"+fileTransferID+"/CompleteDownload", "", DOWNLOAD_FILE);
                     }
                     catch (Throwable ex) {
                         logger.error(ex);
                         //cancel upload
-                        method.postString("/fileService/"+fileTransferID+"/CancelDownload", "", sessionID, CANCEL_DOWNLOAD);
+                        method.postString("/fileService/"+fileTransferID+"/CancelDownload", "", CANCEL_DOWNLOAD);
                         throw new CloudException(ex);
                     }
                 }
@@ -674,9 +659,6 @@ public class BlobStore extends AbstractBlobStoreSupport{
             }
         }
         finally {
-            //delete the session
-            VirtustreamStorageMethod method = new VirtustreamStorageMethod(provider);
-            method.deleteString("/session/"+sessionID, sessionID, DELETE_FILE_TRANSFER_SESSION);
             APITrace.end();
         }
     }
@@ -691,8 +673,8 @@ public class BlobStore extends AbstractBlobStoreSupport{
 
         try{
             try {
-                VirtustreamStorageMethod method = new VirtustreamStorageMethod(provider);
-                response = method.getFileDownload("/fileService/"+fileTransferID+"?Position="+basicId+"&ChunkSize="+blockSize, sessionID, DOWNLOAD_FILE);
+                VirtustreamMethod method = new VirtustreamMethod(provider);
+                response = method.getFileDownload("/fileService/"+fileTransferID+"?Position="+basicId+"&ChunkSize="+blockSize, DOWNLOAD_FILE);
                 while ((read = response.read(bytes)) != -1) {
                     basicId = basicId+read;
                     if( read < blockSize ) {
@@ -704,7 +686,7 @@ public class BlobStore extends AbstractBlobStoreSupport{
                         fullBytes.write(bytes);
                        //
                     }
-                    response = method.getFileDownload("/fileService/"+fileTransferID+"?Position="+basicId+"&ChunkSize="+blockSize, sessionID, DOWNLOAD_FILE);
+                    response = method.getFileDownload("/fileService/"+fileTransferID+"?Position="+basicId+"&ChunkSize="+blockSize, DOWNLOAD_FILE);
                     if (response.available()<=0) {
                         break;
                     }
@@ -732,13 +714,6 @@ public class BlobStore extends AbstractBlobStoreSupport{
         if( bucket == null ) {
             throw new CloudException("No bucket was specified");
         }
-        if (sessionID == null) {
-            getFileTransferSession();
-            if (sessionID == null) {
-                logger.error("Unable to get session id for upload file transfer op");
-                throw new CloudException("Unable to get session id for upload file transfer op");
-            }
-        }
         String fileTransferID = null;
 
         InputStream input;
@@ -754,7 +729,7 @@ public class BlobStore extends AbstractBlobStoreSupport{
         JSONObject json = null;
 
         try {
-            VirtustreamStorageMethod method = new VirtustreamStorageMethod(provider);
+            VirtustreamMethod method = new VirtustreamMethod(provider);
             int position = bucket.indexOf("/");
             String tmp;
             String path;
@@ -780,7 +755,7 @@ public class BlobStore extends AbstractBlobStoreSupport{
             json.put("FileSizeBytes", file.length());
 
 
-            String obj = method.postString("/fileService", json.toString(), sessionID, UPLOAD_FILE);
+            String obj = method.postString("/fileService", json.toString(), UPLOAD_FILE);
             if (obj != null && obj.length()>0) {
                 JSONObject response = new JSONObject(obj);
                 fileTransferID = response.getString("FileTransferID");
@@ -789,7 +764,7 @@ public class BlobStore extends AbstractBlobStoreSupport{
 
             if (fileTransferID != null) {
                 putBlocks(fileTransferID, input);
-                String response = method.postString("/fileService/"+fileTransferID+"/CompleteUpload", "", sessionID, UPLOAD_FILE);
+                String response = method.postString("/fileService/"+fileTransferID+"/CompleteUpload", "", UPLOAD_FILE);
                 if (response != null && response.length() > 0) {
                     JSONObject node = new JSONObject(response);
                     if (provider.parseStorageTaskID(node) == null) {
@@ -866,8 +841,8 @@ public class BlobStore extends AbstractBlobStoreSupport{
         catch (Exception ex) {
             logger.error(ex);
             //cancel upload
-            VirtustreamStorageMethod method = new VirtustreamStorageMethod(provider);
-            method.postString("/fileService/"+fileTransferID+"/CancelUpload", "", sessionID, CANCEL_UPLOAD);
+            VirtustreamMethod method = new VirtustreamMethod(provider);
+            method.postString("/fileService/"+fileTransferID+"/CancelUpload", "", CANCEL_UPLOAD);
             throw new CloudException(ex);
         }
         finally{
@@ -878,12 +853,12 @@ public class BlobStore extends AbstractBlobStoreSupport{
 
     private void putBlocks(@Nonnull byte[] content, @Nonnull int blockId, @Nonnull String fileTransferID) throws  InternalException, CloudException {
         try {
-            VirtustreamStorageMethod method = new VirtustreamStorageMethod(provider);
+            VirtustreamMethod method = new VirtustreamMethod(provider);
             JSONObject json = new JSONObject();
             json.put("Sequence", blockId);
             json.put("Data", content);
 
-            method.postString("/fileService/"+fileTransferID, json.toString(), sessionID, UPLOAD_FILE);
+            method.postString("/fileService/"+fileTransferID, json.toString(), UPLOAD_FILE);
         }
         catch (JSONException e) {
             logger.error(e);
@@ -973,45 +948,6 @@ public class BlobStore extends AbstractBlobStoreSupport{
             catch (JSONException e) {
                 logger.error(e);
                 throw new InternalException("Unable to parse JSONObject "+e.getMessage());
-            }
-        }
-        finally {
-            APITrace.end();
-        }
-    }
-
-    transient String sessionID = null;
-    private void getFileTransferSession() throws InternalException, CloudException {
-        APITrace.begin(provider, GET_FILE_TRANSFER_SESSION);
-        try {
-            VirtustreamStorageMethod method = new VirtustreamStorageMethod(provider);
-            JSONObject json = new JSONObject();
-            try {
-                ProviderContext ctx = provider.getContext();
-                try {
-                    String userName = new String(ctx.getAccessPublic(), "utf-8");
-                    String password = new String(ctx.getAccessPrivate(), "utf-8");
-
-                    json.put("Username", userName);
-                    json.put("Password", password);
-                } catch (UnsupportedEncodingException e) {
-                    throw new InternalException(e);
-                }
-            }
-            catch (JSONException e) {
-                logger.error(e);
-                throw new InternalException("Unable to parse JSON "+e.getMessage());
-            }
-            String obj = method.postString("/session", json.toString(), null, GET_FILE_TRANSFER_SESSION);
-            if (obj != null && obj.length()>0) {
-                try {
-                    JSONObject node = new JSONObject(obj);
-                    sessionID = node.getString("SessionID");
-                }
-                catch (JSONException e) {
-                    logger.error(e);
-                    throw new InternalException("Unable to parse JSON "+e.getMessage());
-                }
             }
         }
         finally {
