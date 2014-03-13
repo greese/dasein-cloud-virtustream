@@ -125,8 +125,8 @@ public class Virtustream extends AbstractCloud {
             try {
                 String username = new String(ctx.getAccessPublic(), "utf-8");
                 VirtustreamMethod method = new VirtustreamMethod(this);
-                String body = method.getString("User?$filter=UserPrincipalName eq '"+username+"'", TEST_CONTEXT);
-
+                String body = method.getString("User", TEST_CONTEXT);
+                //?$filter=UserPrincipalName eq '"+username+"'"
                 if (body == null) {
                     return null;
                 }

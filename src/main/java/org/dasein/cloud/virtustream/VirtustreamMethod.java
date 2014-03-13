@@ -49,13 +49,20 @@ import org.json.JSONObject;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLEncoder;
+import java.security.SignatureException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Properties;
+import java.util.TimeZone;
 
 public class VirtustreamMethod {
     static private final Logger logger = Virtustream.getLogger(VirtustreamMethod.class);
@@ -209,13 +216,15 @@ public class VirtustreamMethod {
                         String userName = new String(ctx.getAccessPublic(), "utf-8");
                         String password = new String(ctx.getAccessPrivate(), "utf-8");
 
-                        auth = new String(Base64.encodeBase64((userName + ":" + password).getBytes()));
+                        auth = getSignature(ctx.getRegionId(), userName, password, "1");
                     } catch (UnsupportedEncodingException e) {
+                        throw new InternalException(e);
+                    }catch( SignatureException e ) {
                         throw new InternalException(e);
                     }
                     get.addHeader("Content-Type", "application/json; charset=utf-8");
                     get.addHeader("Accept", "application/json");
-                    get.addHeader("Authorization", "Basic " + auth);
+                    get.addHeader("Authorization", "Keypair " + auth);
 
                     if (wire.isDebugEnabled()) {
                         wire.debug(get.getRequestLine().toString());
@@ -356,13 +365,16 @@ public class VirtustreamMethod {
                         String userName = new String(ctx.getAccessPublic(), "utf-8");
                         String password = new String(ctx.getAccessPrivate(), "utf-8");
 
-                        auth = new String(Base64.encodeBase64((userName + ":" + password).getBytes()));
+                        auth = getSignature(ctx.getRegionId(), userName, password, "1");
                     } catch (UnsupportedEncodingException e) {
+                        throw new InternalException(e);
+                    }
+                    catch( SignatureException e ) {
                         throw new InternalException(e);
                     }
                     post.addHeader("Content-Type", "application/json; charset=utf-8");
                     post.addHeader("Accept", "application/json");
-                    post.addHeader("Authorization", "Basic " + auth);
+                    post.addHeader("Authorization", "Keypair " + auth);
                     try {
                         post.setEntity(new StringEntity(body, "utf-8"));
                     } catch (UnsupportedEncodingException e) {
@@ -477,5 +489,190 @@ public class VirtustreamMethod {
             return null;
         }
         return null;
+    }
+
+    public @Nullable
+    InputStream getFileDownload(@Nonnull String resource, @Nonnull String command) throws InternalException, CloudException {
+        if (logger.isTraceEnabled()) {
+            logger.trace("ENTER - " + Virtustream.class.getName() + ".getFileDownload(" + resource + ")");
+        }
+
+        try {
+            String body = "";
+            String target = getEndpoint(resource);
+            if (wire.isDebugEnabled()) {
+                wire.debug("");
+                wire.debug(">>> [GET (" + (new Date()) + ")] -> " + target + " >--------------------------------------------------------------------------------------");
+            }
+            try {
+                URI uri;
+
+                try {
+                    target = target.replace(" ", "%20");
+                    uri = new URI(target);
+                } catch (URISyntaxException e) {
+                    throw new InternalException(e);
+                }
+                HttpClient client = getClient(uri);
+
+                try {
+                    ProviderContext ctx = provider.getContext();
+
+                    if (ctx == null) {
+                        throw new InternalException("No context was set");
+                    }
+                    HttpGet get = new HttpGet(target);
+                    String auth;
+
+                    try {
+                        String userName = new String(ctx.getAccessPublic(), "utf-8");
+                        String password = new String(ctx.getAccessPrivate(), "utf-8");
+
+                        auth = getSignature(ctx.getRegionId(), userName, password, "1");
+                    } catch (UnsupportedEncodingException e) {
+                        throw new InternalException(e);
+                    }
+                    catch( SignatureException e ) {
+                        throw new InternalException(e);
+                    }
+                    get.addHeader("Content-Type", "application/json; charset=utf-8");
+                    get.addHeader("Accept", "application/json");
+                    get.addHeader("Authorization", "Keypair " + auth);
+
+                    if (wire.isDebugEnabled()) {
+                        wire.debug(get.getRequestLine().toString());
+                        for (Header header : get.getAllHeaders()) {
+                            wire.debug(header.getName() + ": " + header.getValue());
+                        }
+                        wire.debug("");
+                        wire.debug("");
+                    }
+                    HttpResponse response;
+                    StatusLine status;
+
+                    try {
+                        APITrace.trace(provider, command);
+                        response = client.execute(get);
+                        status = response.getStatusLine();
+                    } catch (IOException e) {
+                        logger.error("Failed to execute HTTP request due to a cloud I/O error: " + e.getMessage());
+                        throw new CloudException(e);
+                    }
+                    if (logger.isDebugEnabled()) {
+                        logger.debug("HTTP Status " + status);
+                    }
+                    Header[] headers = response.getAllHeaders();
+
+                    if (wire.isDebugEnabled()) {
+                        wire.debug(status.toString());
+                        for (Header h : headers) {
+                            if (h.getValue() != null) {
+                                wire.debug(h.getName() + ": " + h.getValue().trim());
+                            } else {
+                                wire.debug(h.getName() + ":");
+                            }
+                        }
+                        wire.debug("");
+                    }
+                    if (status.getStatusCode() == NOT_FOUND) {
+                        return null;
+                    }
+                    if (status.getStatusCode() != OK && status.getStatusCode() != NO_CONTENT && status.getStatusCode() != CREATED && status.getStatusCode() != ACCEPTED) {
+                        logger.error("Expected OK for POST request, got " + status.getStatusCode());
+                        HttpEntity entity = response.getEntity();
+
+                        if (entity == null) {
+                            throw new VirtustreamException(CloudErrorType.GENERAL, status.getStatusCode(), status.getReasonPhrase(), status.getReasonPhrase());
+                        }
+                        try {
+                            body = EntityUtils.toString(entity);
+                        } catch (IOException e) {
+                            throw new VirtustreamException(e);
+                        }
+                        if (wire.isDebugEnabled()) {
+                            wire.debug(body);
+                        }
+                        wire.debug("");
+                        throw new VirtustreamException(CloudErrorType.GENERAL, status.getStatusCode(), status.getReasonPhrase(), body);
+                    } else {
+                        HttpEntity entity = response.getEntity();
+
+                        if (entity == null) {
+                            return null;
+                        }
+                        InputStream input;
+                        try {
+                            input = entity.getContent();
+                        } catch (IOException e) {
+                            throw new VirtustreamException(e);
+                        }
+
+                        return input;
+                    }
+                } finally {
+                    try {
+                        client.getConnectionManager().shutdown();
+                    } catch (Throwable ignore) {
+                    }
+                }
+            } finally {
+                if (wire.isDebugEnabled()) {
+                    wire.debug("<<< [GET (" + (new Date()) + ")] -> " + target + " <--------------------------------------------------------------------------------------");
+                    wire.debug("");
+                }
+            }
+        } finally {
+            if (logger.isTraceEnabled()) {
+                logger.trace("EXIT - " + Virtustream.class.getName() + ".getFileDownload()");
+            }
+        }
+    }
+
+    private String getSignature(String location, String apiKey, String accessKey, String version) throws UnsupportedEncodingException, SignatureException, CloudException, InternalException {
+        Logger logger = Virtustream.getLogger(VirtustreamMethod.class);
+
+        if( logger.isTraceEnabled() ) {
+            logger.trace("enter - " + VirtustreamMethod.class.getName() + ".getSignature(" + location + "," + apiKey + "," + accessKey +"," +version);
+        }
+        try {
+            Base64 obj = new Base64();
+            String key = apiKey;
+            String secret = accessKey;
+            TimeZone tz = TimeZone.getTimeZone("UTC");
+            DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+            df.setTimeZone(tz);
+            String nowAsISO = df.format(new Date());
+
+            String b64HashedSecret = new String(obj.encode(calculateHmac(secret, secret)));
+            String bodyString = String.format("Location=%s&PublicKey=%s&UTCTimeStamp=%s&Version=1.0", "US1", key, URLEncoder.encode(nowAsISO, "UTF-8"));
+            String clear = key + nowAsISO + bodyString + b64HashedSecret;
+            String b64Clear = new String(obj.encode(clear.getBytes("UTF-8")));
+
+            String b64HashedSignature = new String(obj.encode(calculateHmac(clear, accessKey)));
+
+            String doubleEncSig = new String(obj.encode(b64HashedSignature.getBytes("UTF-8")));
+            String b64Key = new String(obj.encode(key.getBytes("UTF-8")));
+
+            String auth = new String(obj.encode(String.format("%s:%s:%s", b64Key, doubleEncSig, b64Clear).getBytes("UTF-8")));
+            return auth;
+        }
+        finally {
+            if( logger.isTraceEnabled() ) {
+                logger.trace("exit - " + VirtustreamMethod.class.getName() + ".getSignature()");
+            }
+        }
+    }
+
+    private byte[] calculateHmac(String data, String key) throws SignatureException {
+        try {
+            SecretKeySpec signingKey = new SecretKeySpec(key.getBytes(), "HmacSHA256");
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(signingKey);
+
+            return mac.doFinal(data.getBytes());
+        }
+        catch (Exception e) {
+            throw new SignatureException("Failed to generate HMAC : " + e.getMessage());
+        }
     }
 }
