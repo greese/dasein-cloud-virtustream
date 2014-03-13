@@ -553,12 +553,8 @@ public class BlobStore extends AbstractBlobStoreSupport{
                 throw new OperationNotSupportedException("Creating new bucket not supported for cloud");
             }
 
-            if (sessionID != null) {
-                put(bucket, objectName, sourceFile);
-                return getObject(bucket, objectName);
-            }
-            logger.error("Not got a session id from cloud for upload file transfer operation");
-            throw new CloudException("Not got a session id from cloud for upload file transfer operation");
+            put(bucket, objectName, sourceFile);
+            return getObject(bucket, objectName);
         }
         finally {
             APITrace.end();
