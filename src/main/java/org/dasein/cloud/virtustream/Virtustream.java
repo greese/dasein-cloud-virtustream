@@ -33,12 +33,15 @@ import org.json.JSONObject;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Iterator;
 
 public class Virtustream extends AbstractCloud {
     static private final Logger logger = getLogger(Virtustream.class);
 
+    static private final String DELETE_SESSION  = "deleteSession";
+    static private final String GET_SESSION     = "getSession";
     static private final String TEST_CONTEXT    = "testContext";
     static private final String WAIT_FOR_TASK   = "waitForTask";
 
@@ -125,7 +128,8 @@ public class Virtustream extends AbstractCloud {
             try {
                 String username = new String(ctx.getAccessPublic(), "utf-8");
                 VirtustreamMethod method = new VirtustreamMethod(this);
-                String body = method.getString("User?$filter=UserPrincipalName eq '"+username+"'", TEST_CONTEXT);
+                String body = method.getString("User", TEST_CONTEXT);
+                //?$filter=UserPrincipalName eq '"+username+"'"
 
                 if (body == null) {
                     return null;
@@ -167,6 +171,7 @@ public class Virtustream extends AbstractCloud {
 
     public String waitForTaskCompletion(@Nonnull String taskInfoID) throws InternalException, CloudException {
         APITrace.begin(this, WAIT_FOR_TASK);
+        String sessionID = null;
         try {
             try {
                 VirtustreamMethod method = new VirtustreamMethod(this);
@@ -176,7 +181,7 @@ public class Virtustream extends AbstractCloud {
                         Thread.sleep(15000L);
                     }
                     catch (InterruptedException ignore) {}
-                    String body = method.getString("/TaskInfo/"+taskInfoID, WAIT_FOR_TASK);
+                    String body = method.getString("/TaskInfo/" + taskInfoID, WAIT_FOR_TASK);
                     count++;
                     if (body != null && body.length() > 0) {
                         JSONObject json = new JSONObject(body);
