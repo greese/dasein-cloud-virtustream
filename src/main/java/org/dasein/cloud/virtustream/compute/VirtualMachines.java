@@ -439,6 +439,12 @@ public class VirtualMachines extends AbstractVMSupport {
                     cpuCore = 1;
                     ramAllocated = 2048;
                 }
+                // get suitable resource pool
+                String resourcePoolId = findAvailableResourcePool(dc);
+                if (resourcePoolId == null) {
+                    logger.error("No available resource pool in datacenter "+dc.getName());
+                    throw new CloudException("No available resource pool in datacenter "+dc.getName());
+                }
 
                 //find a suitable storage location for the hard disk
                 String storageId = findAvailableStorage(capacityKB, dc);
@@ -459,12 +465,7 @@ public class VirtualMachines extends AbstractVMSupport {
                 JSONArray nics = new JSONArray();
                 nics.put(nic);
 
-                // get suitable resource pool
-                String resourcePoolId = findAvailableResourcePool(dc);
-                if (resourcePoolId == null) {
-                    logger.error("No available resource pool in datacenter "+dc.getName());
-                    throw new CloudException("No available resource pool in datacenter "+dc.getName());
-                }
+
 
                 //customisation of password and ip address and a whole bunch of mandatory params
                /* JSONObject customization = new JSONObject();
@@ -1104,24 +1105,35 @@ public class VirtualMachines extends AbstractVMSupport {
         return arch;
     }
 
+    private transient String storageComputeId;
     public String findAvailableStorage(@Nonnull long capacityKB, @Nonnull DataCenter dataCenter) throws CloudException, InternalException {
         APITrace.begin(provider, FIND_STORAGE);
         try {
             try {
                 VirtustreamMethod method = new VirtustreamMethod(provider);
                 HashMap<String, Integer> map = new HashMap<String, Integer>();
+
                 String obj = method.getString("/Storage?$filter=IsRemoved eq false and Hypervisor/Site/SiteID eq '"+dataCenter.getProviderDataCenterId()+"'", FIND_STORAGE);
                 if (obj != null && obj.length() > 0) {
                     JSONArray list = new JSONArray(obj);
                     for (int i=0; i<list.length(); i++) {
+                        boolean found = false;
                         JSONObject json = list.getJSONObject(i);
                         String id = json.getString("StorageID");
                         long freeSpaceKB = json.getLong("FreeSpaceKB");
                         long storageCapacityKB = json.getLong("CapacityKB");
                         int percentFree = Math.round((storageCapacityKB/freeSpaceKB)*100);
+                        JSONArray computeIds = json.getJSONArray("ComputeResourceIDs");
+                        for (int j = 0; j < computeIds.length(); j++) {
+                            String computeID = computeIds.getString(j);
+                            if (computeID.equals(storageComputeId)) {
+                                found = true;
+                                break;
+                            }
+                        }
 
                         // as long as the storage has enough free space we can use it
-                        if (capacityKB <= freeSpaceKB) {
+                        if (capacityKB <= freeSpaceKB && found) {
                             map.put(id, percentFree);
                         }
                     }
@@ -1168,11 +1180,15 @@ public class VirtualMachines extends AbstractVMSupport {
                         JSONObject json = list.getJSONObject(i);
 
                         String id = json.getString("ResourcePoolID");
+                        String computeId = json.getString("ComputeResourceID");
                         if (i == 0) {
                             firstResourcePool = id;
+                            storageComputeId = computeId;
                         }
+
                         if (json.has("VirtualMachineIDs") && !json.isNull("VirtualMachineIDs")) {
                             // found a resource pool currently in use so let's use it too
+                            storageComputeId = computeId;
                             return id;
                         }
                     }
@@ -1221,4 +1237,5 @@ public class VirtualMachines extends AbstractVMSupport {
         }
         return false;
     }
+
 }
