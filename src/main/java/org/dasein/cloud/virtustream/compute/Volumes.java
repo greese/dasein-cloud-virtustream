@@ -31,6 +31,8 @@ import org.dasein.cloud.compute.VolumeFormat;
 import org.dasein.cloud.compute.VolumeState;
 import org.dasein.cloud.compute.VolumeType;
 import org.dasein.cloud.util.APITrace;
+import org.dasein.cloud.util.Cache;
+import org.dasein.cloud.util.CacheLevel;
 import org.dasein.cloud.virtustream.Virtustream;
 import org.dasein.cloud.virtustream.VirtustreamMethod;
 import org.dasein.util.uom.storage.Gigabyte;
@@ -43,6 +45,7 @@ import org.json.JSONObject;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Locale;
 
 public class Volumes extends AbstractVolumeSupport {
@@ -93,7 +96,46 @@ public class Volumes extends AbstractVolumeSupport {
     @Nonnull
     @Override
     public Iterable<String> listPossibleDeviceIds(@Nonnull Platform platform) throws InternalException, CloudException {
-        return null;
+        Cache<String> cache;
+
+        if( platform.isWindows() ) {
+            cache = Cache.getInstance(getProvider(), "windowsDeviceIds", String.class, CacheLevel.CLOUD);
+        }
+        else {
+            cache = Cache.getInstance(getProvider(), "unixDeviceIds", String.class, CacheLevel.CLOUD);
+        }
+        Iterable<String> ids = cache.get(getContext());
+
+        if( ids == null ) {
+            ArrayList<String> list = new ArrayList<String>();
+
+            if( platform.isWindows() ) {
+                list.add("hda");
+                list.add("hdb");
+                list.add("hdc");
+                list.add("hdd");
+                list.add("hde");
+                list.add("hdf");
+                list.add("hdg");
+                list.add("hdh");
+                list.add("hdi");
+                list.add("hdj");
+            }
+            else {
+                list.add("/dev/xvda");
+                list.add("/dev/xvdb");
+                list.add("/dev/xvdc");
+                list.add("/dev/xvde");
+                list.add("/dev/xvdf");
+                list.add("/dev/xvdg");
+                list.add("/dev/xvdh");
+                list.add("/dev/xvdi");
+                list.add("/dev/xvdj");
+            }
+            ids = Collections.unmodifiableList(list);
+            cache.put(getContext(), ids);
+        }
+        return ids;
     }
 
     @Nonnull
@@ -278,7 +320,8 @@ public class Volumes extends AbstractVolumeSupport {
             volume.setDeviceId(toDeviceID(deviceId, platform.equals(Platform.WINDOWS)));
             int diskNum = json.getInt("DiskNumber");
             if (diskNum == 1) {
-               volume.setRootVolume(true);
+                volume.setRootVolume(true);
+                volume.setGuestOperatingSystem(platform);
             }
 
             return volume;
