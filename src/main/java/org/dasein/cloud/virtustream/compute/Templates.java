@@ -470,8 +470,13 @@ public class Templates extends AbstractImageSupport{
             }
 
             if (regionId == null) {
-                logger.warn("Unable to find region id for template "+imageId);
-                regionId = getContext().getRegionId();
+                logger.error("Unable to find region id for template "+imageId);
+                return null;
+            }
+            else {
+                if (!regionId.equals(getContext().getRegionId())) {
+                    return null;
+                }
             }
             if (name == null) {
                 name = imageId;
