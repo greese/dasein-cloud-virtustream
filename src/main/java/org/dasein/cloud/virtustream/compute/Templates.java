@@ -37,6 +37,7 @@ import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.util.APITrace;
 import org.dasein.cloud.virtustream.Virtustream;
 import org.dasein.cloud.virtustream.VirtustreamMethod;
+import org.dasein.util.CalendarWrapper;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -163,7 +164,20 @@ public class Templates extends AbstractImageSupport{
                 logger.error("Template created without error but no new id returned");
                 throw new CloudException("Template created without error but no new id returned");
             }
-            MachineImage img = getImage(templateId);
+
+            long timeout = System.currentTimeMillis()+(CalendarWrapper.MINUTE *5l);
+
+            MachineImage img = null;
+            while (timeout > System.currentTimeMillis()) {
+                img = getImage(templateId);
+                if (img != null) {
+                    break;
+                }
+                try {
+                    Thread.sleep(15000l);
+                }
+                catch (InterruptedException ignore) {}
+            }
             if( img == null ) {
                 logger.error("Machine image job completed successfully, but no image " + templateId + " exists.");
                 throw new CloudException("Machine image job completed successfully, but no image " + templateId + " exists.");
