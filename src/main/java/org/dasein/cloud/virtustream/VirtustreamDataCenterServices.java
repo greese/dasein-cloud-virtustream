@@ -178,12 +178,29 @@ public class VirtustreamDataCenterServices implements DataCenterServices {
                 try {
                     VirtustreamMethod method = new VirtustreamMethod(provider);
                     regions = new ArrayList<Region>();
-                    String obj = method.getString("Region", LIST_REGIONS);
+                    /*String obj = method.getString("Region", LIST_REGIONS);
 
                     if (obj != null && obj.length() > 0) {
                         JSONArray nodes = new JSONArray(obj);
                         for (int i=0; i<nodes.length(); i++) {
                             Region r = toRegion(nodes.getJSONObject(i));
+                            if (r != null) {
+                                regions.add(r);
+                            }
+                        }
+                    }*/
+
+                    // only return regions where we have compute resource available
+                    String obj = method.getString("ResourcePool?$distinct=Hypervisor", LIST_REGIONS);
+                    if (obj != null && obj.length() > 0) {
+                        JSONArray nodes = new JSONArray(obj);
+                        for (int i=0; i<nodes.length(); i++) {
+                            //read out site then get the site's region
+                            JSONObject hypervisor = nodes.getJSONObject(i);
+                            JSONObject site = hypervisor.getJSONObject("Site");
+                            JSONObject region = site.getJSONObject("Region");
+
+                            Region r = toRegion(region);
                             if (r != null) {
                                 regions.add(r);
                             }
