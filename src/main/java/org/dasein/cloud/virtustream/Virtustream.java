@@ -106,11 +106,11 @@ public class Virtustream extends AbstractCloud {
         return (name == null ? "Virtustream" : name);
     }
 
-    @Nullable
+   /* @Nullable
     @Override
     public synchronized VirtustreamStorageServices getStorageServices() {
         return new VirtustreamStorageServices(this);
-    }
+    } */
 
     @Override
     public String testContext() {
