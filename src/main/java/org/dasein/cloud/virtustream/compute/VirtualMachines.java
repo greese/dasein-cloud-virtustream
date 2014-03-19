@@ -38,9 +38,12 @@ import org.dasein.cloud.compute.VMScalingOptions;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.dc.DataCenter;
 import org.dasein.cloud.network.RawAddress;
+import org.dasein.cloud.network.VLAN;
 import org.dasein.cloud.util.APITrace;
 import org.dasein.cloud.virtustream.Virtustream;
 import org.dasein.cloud.virtustream.VirtustreamMethod;
+import org.dasein.cloud.virtustream.network.Networks;
+import org.dasein.cloud.virtustream.network.VirtustreamNetworkServices;
 import org.dasein.util.CalendarWrapper;
 import org.dasein.util.uom.storage.Gigabyte;
 import org.dasein.util.uom.storage.Kilobyte;
@@ -439,8 +442,9 @@ public class VirtualMachines extends AbstractVMSupport {
                     cpuCore = 1;
                     ramAllocated = 2048;
                 }
-                // get suitable resource pool
-                String resourcePoolId = findAvailableResourcePool(dc);
+                // get suitable resource pool according to selected network
+                String networkComputeResourceId = getComputeResourceOfNetwork(networkId);
+                String resourcePoolId = findAvailableResourcePool(dc, networkComputeResourceId);
                 if (resourcePoolId == null) {
                     logger.error("No available resource pool in datacenter "+dc.getName());
                     throw new CloudException("No available resource pool in datacenter "+dc.getName());
@@ -541,8 +545,23 @@ public class VirtualMachines extends AbstractVMSupport {
                     JSONObject json = new JSONObject(obj);
                     String vmId = provider.parseTaskID(json);
                     if (vmId != null) {
-                        VirtualMachine vm = getVirtualMachine(vmId);
+                        // poll for up to 5 minutes - VS can sometimes suffer from race condition problems
+                        VirtualMachine vm = null;
+                        long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE * 5l);
+                        while (timeout > System.currentTimeMillis()) {
+                            vm = getVirtualMachine(vmId);
+                            if (vm != null) {
+                                break;
+                            }
+                            try {
+                                Thread.sleep(15000l);
+                            }
+                            catch (InterruptedException ignore) {}
+                        }
                      //   vm.setRootPassword(password);
+                        if (vm == null) {
+                            logger.error("VM was launched and new id returned but it has not been found by Virtustream");
+                        }
                         return vm;
                     }
                 }
@@ -1166,14 +1185,13 @@ public class VirtualMachines extends AbstractVMSupport {
         }
     }
 
-    public String findAvailableResourcePool(@Nonnull DataCenter dataCenter) throws InternalException, CloudException {
+    public String findAvailableResourcePool(@Nonnull DataCenter dataCenter, @Nonnull String networkComputeResourceID) throws InternalException, CloudException {
         APITrace.begin(provider, FIND_RESOURCE_POOL);
         try {
             try {
                 VirtustreamMethod method = new VirtustreamMethod(provider);
                 String obj = method.getString("/ResourcePool?$filter=IsRemoved eq false and Hypervisor/Site/SiteID eq '"+dataCenter.getProviderDataCenterId()+"'", FIND_RESOURCE_POOL);
 
-                String firstResourcePool = null;
                 if (obj != null && obj.length() > 0) {
                     JSONArray list = new JSONArray(obj);
                     for (int i=0; i<list.length(); i++) {
@@ -1181,24 +1199,14 @@ public class VirtualMachines extends AbstractVMSupport {
 
                         String id = json.getString("ResourcePoolID");
                         String computeId = json.getString("ComputeResourceID");
-                        if (i == 0) {
-                            firstResourcePool = id;
-                            storageComputeId = computeId;
-                        }
-
-                        if (json.has("VirtualMachineIDs") && !json.isNull("VirtualMachineIDs")) {
-                            // found a resource pool currently in use so let's use it too
+                        if (computeId.equals(networkComputeResourceID)) {
                             storageComputeId = computeId;
                             return id;
                         }
                     }
                 }
-                if (firstResourcePool == null) {
-                    logger.error("No available resource pool in datacenter "+dataCenter.getName());
-                    throw new CloudException("No available resource pool in datacenter "+dataCenter.getName());
-                }
-                // just return first resource pool found if none are currently in use
-                return firstResourcePool;
+                logger.error("No available resource pool in datacenter "+dataCenter.getName());
+                throw new CloudException("No available resource pool in datacenter "+dataCenter.getName());
             }
             catch (JSONException e) {
                 logger.error(e);
@@ -1236,6 +1244,19 @@ public class VirtualMachines extends AbstractVMSupport {
             }
         }
         return false;
+    }
+
+    private String getComputeResourceOfNetwork(@Nonnull String networkId) throws CloudException, InternalException {
+        APITrace.begin(provider, "getNetworkComputeResourceID");
+        try {
+            Networks services = provider.getNetworkServices().getVlanSupport();
+            VLAN vlan = services.getVlan(networkId);
+            return vlan.getTag("computeResourceID");
+
+        }
+        finally {
+            APITrace.end();
+        }
     }
 
 }
