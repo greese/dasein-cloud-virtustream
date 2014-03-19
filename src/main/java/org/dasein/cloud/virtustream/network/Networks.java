@@ -249,6 +249,12 @@ public class Networks extends AbstractVLANSupport {
                 vlan.setCidr(netmask, gateway);
             }
 
+            if (json.has("ComputeResourceIDs") && !json.isNull("ComputeResourceIDs")) {
+                JSONArray list = json.getJSONArray("ComputeResourceIDs");
+                String computeResourceID =  list.getString(0);
+                vlan.setTag("computeResourceID", computeResourceID);
+            }
+
             if (vlan.getName() == null) {
                 vlan.setName(vlan.getProviderVlanId());
             }
