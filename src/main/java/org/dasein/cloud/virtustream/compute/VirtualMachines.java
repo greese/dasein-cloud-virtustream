@@ -174,7 +174,8 @@ public class VirtualMachines extends AbstractVMSupport {
                         Storage<Kilobyte> capacity = (Storage<Kilobyte>)size.convertTo(Storage.KILOBYTE);
                         long capacityKB = capacity.longValue();
 
-                        //find a suitable storage location for the hard disk
+                        //find a suitable storage location for the hard disk based on the vms resource pool id
+                        storageComputeId = getComputeIDFromResourcePool(vm.getTag("ResourcePoolID").toString());
                         String storageId = findAvailableStorage(capacityKB, dc);
                         if (storageId == null) {
                             logger.error("No available storage resource in datacenter "+dc.getName());
@@ -1212,6 +1213,32 @@ public class VirtualMachines extends AbstractVMSupport {
             VLAN vlan = services.getVlan(networkId);
             return vlan.getTag("computeResourceID");
 
+        }
+        finally {
+            APITrace.end();
+        }
+    }
+
+    private String getComputeIDFromResourcePool(@Nonnull String resourcePoolID) throws InternalException, CloudException {
+        APITrace.begin(provider, FIND_RESOURCE_POOL);
+        try {
+            try {
+                VirtustreamMethod method = new VirtustreamMethod(provider);
+                String obj = method.getString("/ResourcePool/"+resourcePoolID+"?$filter=IsRemoved eq false", FIND_RESOURCE_POOL);
+
+                if (obj != null && obj.length() > 0) {
+                    JSONObject json = new JSONObject(obj);
+
+                    String computeId = json.getString("ComputeResourceID");
+                    return computeId;
+                }
+                logger.error("No available resource pool with id "+resourcePoolID);
+                throw new CloudException("No available resource pool with id "+resourcePoolID);
+            }
+            catch (JSONException e) {
+                logger.error(e);
+                throw new InternalException("Unable to parse JSONObject "+e.getMessage());
+            }
         }
         finally {
             APITrace.end();
