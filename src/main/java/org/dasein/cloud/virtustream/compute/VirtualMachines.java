@@ -412,7 +412,9 @@ public class VirtualMachines extends AbstractVMSupport {
                 capacityKB = 20971520;
                 //get the device key for the template
                 MachineImage img = provider.getComputeServices().getImageSupport().getImage(templateId);
-                int deviceKey = Integer.parseInt(img.getTag("DeviceKey").toString());
+                int diskDeviceKey = Integer.parseInt(img.getTag("diskDeviceKey").toString());
+                int nicDeviceKey = Integer.parseInt(img.getTag("nicDeviceKey").toString());
+                String nicID = img.getTag("nicID").toString();
                 String ostype = (img.getPlatform().equals(Platform.WINDOWS)) ? "Windows" : "Linux";
 
                 int cpuCore;
@@ -445,13 +447,15 @@ public class VirtualMachines extends AbstractVMSupport {
                 JSONObject disk = new JSONObject();
                 disk.put("StorageID", storageId);
                 disk.put("CapacityKB", capacityKB);
-                disk.put("DeviceKey", deviceKey);
+                disk.put("DeviceKey", diskDeviceKey);
                 JSONArray disks = new JSONArray();
                 disks.put(disk);
 
                 JSONObject nic = new JSONObject();
                 nic.put("NetworkID", networkId);
                 nic.put("AdapterType", 1);
+                nic.put("DeviceKey", nicDeviceKey);
+                nic.put("VirtualMachineNicID", nicID);
                 JSONArray nics = new JSONArray();
                 nics.put(nic);
 

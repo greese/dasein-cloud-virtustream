@@ -455,7 +455,16 @@ public class Templates extends AbstractImageSupport{
                 JSONArray disks = node.getJSONArray("Disks");
                 JSONObject disk = disks.getJSONObject(0);
                 int deviceKey = disk.getInt("DeviceKey");
-                properties.put("DeviceKey", Integer.toString(deviceKey));
+                properties.put("diskDeviceKey", Integer.toString(deviceKey));
+            }
+
+            if (node.has("Nics") && !node.isNull("Nics")) {
+                JSONArray nics = node.getJSONArray("Nics");
+                JSONObject nic = nics.getJSONObject(0);
+                int deviceKey = nic.getInt("DeviceKey");
+                properties.put("nicDeviceKey", Integer.toString(deviceKey));
+                String nicID = nic.getString("VirtualMachineNicID");
+                properties.put("nicID", nicID);
             }
 
             if (regionId == null) {
