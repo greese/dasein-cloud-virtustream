@@ -427,9 +427,10 @@ public class VirtualMachines extends AbstractVMSupport {
                 capacityKB = 20971520;
                 //get the device key for the template
                 MachineImage img = provider.getComputeServices().getImageSupport().getImage(templateId);
-                int deviceKey = Integer.parseInt(img.getTag("DeviceKey").toString());
+                int diskDeviceKey = Integer.parseInt(img.getTag("diskDeviceKey").toString());
+                int nicDeviceKey = Integer.parseInt(img.getTag("nicDeviceKey").toString());
+                String nicID = img.getTag("nicID").toString();
                 String ostype = (img.getPlatform().equals(Platform.WINDOWS)) ? "Windows" : "Linux";
-
                 int cpuCore;
                 long ramAllocated;
                 if (withLaunchOptions.getStandardProductId() != null) {
@@ -460,20 +461,22 @@ public class VirtualMachines extends AbstractVMSupport {
                 JSONObject disk = new JSONObject();
                 disk.put("StorageID", storageId);
                 disk.put("CapacityKB", capacityKB);
-                disk.put("DeviceKey", deviceKey);
+                disk.put("DeviceKey", diskDeviceKey);
                 JSONArray disks = new JSONArray();
                 disks.put(disk);
 
                 JSONObject nic = new JSONObject();
                 nic.put("NetworkID", networkId);
                 nic.put("AdapterType", 1);
+                nic.put("DeviceKey", nicDeviceKey);
+                nic.put("VirtualMachineNicID", nicID);
                 JSONArray nics = new JSONArray();
                 nics.put(nic);
 
 
-
+               /*
                 //customisation of password and ip address and a whole bunch of mandatory params
-               /* JSONObject customization = new JSONObject();
+                JSONObject customization = new JSONObject();
                 String password = generatePassword();
                 ProviderContext ctx = getContext();
                 Properties prop = ctx.getCustomProperties();
@@ -489,7 +492,7 @@ public class VirtualMachines extends AbstractVMSupport {
                     networkCustom.put("IpAddressMode", 1); //dhcp
                     networksArray.put(networkCustom);
 
-                    customization.put("AdministratorPassword", password);
+                    //customization.put("AdministratorPassword", password);
                     customization.put("UseCustomNetworkSettings", "true");
                     customization.put("NetworkCustomizations", networksArray);
                     customization.put("GuestOsType", ostype);
@@ -498,7 +501,7 @@ public class VirtualMachines extends AbstractVMSupport {
                     customization.put("DomainName", "Virtustream");
                     customization.put("TimeZone", timezoneLocation);
                     customization.put("DomainAdminUsername", "Administrator");
-                    customization.put("DomainAdminPassword", password);
+                    //customization.put("DomainAdminPassword", password);
                     customization.put("ComputerNameOption", 3);  //use vm name
                     //todo this seems to be necessary to get windows servers working from the template they provide
                     //but doing this in such a hidden way to the user is a bad idea
@@ -506,10 +509,19 @@ public class VirtualMachines extends AbstractVMSupport {
                     customization.put("GenerateNewSid", "true");
                 }
                 else {
+                JSONObject customization = new JSONObject();
+                if (ostype.equalsIgnoreCase("Linux"))  {
+                    ProviderContext ctx = getContext();
+                    Properties prop = ctx.getCustomProperties();
+                    String timezoneLocation =  prop.getProperty("TimeZoneID");
+                    if (timezoneLocation == null) {
+                        timezoneLocation = TimeZone.getDefault().getID();
+                    }
                     JSONArray networksArray = new JSONArray();
                     JSONObject networkCustom = new JSONObject();
                     networkCustom.put("NicNumber", 1);
                     networkCustom.put("IpAddressMode", 1); //dhcp
+                    networkCustom.put("DnsServerMode", 1); //dhcp
                     networksArray.put(networkCustom);
 
                     JSONArray dnsSearchPaths = new JSONArray();
@@ -522,8 +534,9 @@ public class VirtualMachines extends AbstractVMSupport {
                     customization.put("DnsSearchPaths", dnsSearchPaths);
                     customization.put("TimeZoneLocation", timezoneLocation);
                     customization.put("ComputerNameOption", 3);  //use vm name
-                }  */
+                }
 
+                 */
                 //***************************************************
 
                 // create json request
@@ -537,7 +550,7 @@ public class VirtualMachines extends AbstractVMSupport {
                 vmJson.put("SourceTemplateID", templateId);
                 vmJson.put("TenantID", tenantId);
                 vmJson.put("CustomerDefinedName", name);
-              //  vmJson.put("CustomizationSpecification", customization);
+               // vmJson.put("CustomizationSpecification", customization);
 
                 body = vmJson.toString();
 
