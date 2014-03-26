@@ -831,7 +831,7 @@ public class VirtualMachines extends AbstractVMSupport {
             if (!vm.getCurrentState().equals(VmState.STOPPED)) {
                 stop(vmId, true);
                 vm = getVirtualMachine(vmId);
-                long timeout = System.currentTimeMillis()+(CalendarWrapper.MINUTE * 5);
+                long timeout = System.currentTimeMillis()+(CalendarWrapper.MINUTE * 30);
                 while (timeout > System.currentTimeMillis()) {
                     try {
                         Thread.sleep(15000L);
