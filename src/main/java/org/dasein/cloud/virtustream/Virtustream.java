@@ -22,19 +22,21 @@ package org.dasein.cloud.virtustream;
 import org.apache.log4j.Logger;
 import org.dasein.cloud.AbstractCloud;
 import org.dasein.cloud.CloudException;
+import org.dasein.cloud.ContextRequirements;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.ProviderContext;
 import org.dasein.cloud.util.APITrace;
 import org.dasein.cloud.virtustream.compute.VirtustreamComputeServices;
 import org.dasein.cloud.virtustream.network.VirtustreamNetworkServices;
-import org.dasein.cloud.virtustream.storage.VirtustreamStorageServices;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
 public class Virtustream extends AbstractCloud {
     static private final Logger logger = getLogger(Virtustream.class);
@@ -113,6 +115,15 @@ public class Virtustream extends AbstractCloud {
     } */
 
     @Override
+    public @Nonnull
+    ContextRequirements getContextRequirements() {
+        return new ContextRequirements(
+                new ContextRequirements.Field("apiKey", "The API Keypair", ContextRequirements.FieldType.KEYPAIR, ContextRequirements.Field.ACCESS_KEYS, true),
+                new ContextRequirements.Field("accountNumber", "The account/tenant id", ContextRequirements.FieldType.TEXT, ContextRequirements.Field.ACCESS_KEYS)
+        );
+    }
+
+    @Override
     public String testContext() {
         APITrace.begin(this, "testContext");
         try {
@@ -123,7 +134,20 @@ public class Virtustream extends AbstractCloud {
                 return null;
             }
             try {
-                String username = new String(ctx.getAccessPublic(), "utf-8");
+                String accessPublic = null;
+                try {
+                    List<ContextRequirements.Field> fields = getContextRequirements().getConfigurableValues();
+                    for(ContextRequirements.Field f : fields ) {
+                        if(f.type.equals(ContextRequirements.FieldType.KEYPAIR)){
+                            byte[][] keyPair = (byte[][])getContext().getConfigurationValue(f);
+                            accessPublic = new String(keyPair[0], "utf-8");
+                        }
+                    }
+                }
+                catch( UnsupportedEncodingException e ) {
+                    throw new InternalException(e);
+                }
+                String username = accessPublic;
                 VirtustreamMethod method = new VirtustreamMethod(this);
                 String body = method.getString("User", TEST_CONTEXT);
                 //?$filter=UserPrincipalName eq '"+username+"'"
