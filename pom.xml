@@ -178,11 +178,11 @@
                     <value>${accountNumber}</value>
                 </property>
                 <property>
-                    <name>accessPublic</name>
+                    <name>apiKeyShared</name>
                     <value>${apiSharedKey}</value>
                 </property>
                 <property>
-                    <name>accessPrivate</name>
+                    <name>apiKeySecret</name>
                     <value>${apiSecretKey}</value>
                 </property>
                 <property>
