@@ -54,7 +54,7 @@ public class VMCapabilities extends AbstractCapabilities<Virtustream> implements
 
     @Override
     public boolean canResume(@Nonnull VmState fromState) throws CloudException, InternalException {
-        return fromState.equals(VmState.RUNNING);
+        return !fromState.equals(VmState.RUNNING);
     }
 
     @Override
