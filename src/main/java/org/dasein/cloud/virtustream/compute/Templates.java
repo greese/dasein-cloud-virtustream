@@ -201,7 +201,7 @@ public class Templates extends AbstractImageSupport{
             }
             VirtustreamMethod method = new VirtustreamMethod(provider);
             ArrayList<ResourceStatus> list = new ArrayList<ResourceStatus>();
-            String obj = method.getString("VirtualMachine?$filter=IsTemplate eq true and IsRemoved eq false and IsGlobalTemplate eq false", LIST_IMAGES);
+            String obj = method.getString("VirtualMachine?$filter=IsTemplate eq true and IsRemoved eq false and TenantID eq '"+getContext().getAccountNumber()+"'", LIST_IMAGES);
             if (obj != null && obj.length() > 0) {
                 JSONArray json = null;
                 JSONObject node = null;

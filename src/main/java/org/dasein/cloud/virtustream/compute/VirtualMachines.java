@@ -286,7 +286,19 @@ public class VirtualMachines extends AbstractVMSupport {
                 logger.error("Vm was cloned without error but new id not returned");
                 throw new CloudException("Vm was cloned without error but new id not returned");
             }
-            return getVirtualMachine(newVMId);
+            long timeout = System.currentTimeMillis()+(CalendarWrapper.MINUTE * 30);
+            VirtualMachine vm = getVirtualMachine(newVMId);
+            while (timeout > System.currentTimeMillis()) {
+                if (vm != null) {
+                    return vm;
+                }
+                try {
+                    Thread.sleep(15000l);
+                    vm = getVirtualMachine(newVMId);
+                }
+                catch (InterruptedException ignore) {}
+            }
+            throw new CloudException("Vm was cloned without error but new vm not found");
         }
         finally {
             APITrace.end();
