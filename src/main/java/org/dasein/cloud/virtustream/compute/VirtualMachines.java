@@ -571,9 +571,9 @@ public class VirtualMachines extends AbstractVMSupport {
                     JSONObject json = new JSONObject(obj);
                     String vmId = provider.parseTaskID(json);
                     if (vmId != null) {
-                        // poll for up to 5 minutes - VS can sometimes suffer from race condition problems
+                        // poll for up to 30 minutes - VS can sometimes suffer from race condition problems
                         VirtualMachine vm = null;
-                        long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE * 5l);
+                        long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE * 30l);
                         while (timeout > System.currentTimeMillis()) {
                             vm = getVirtualMachine(vmId);
                             if (vm != null) {
