@@ -26,12 +26,11 @@ import org.dasein.cloud.InternalException;
 import org.dasein.cloud.ResourceStatus;
 import org.dasein.cloud.compute.AbstractImageSupport;
 import org.dasein.cloud.compute.Architecture;
+import org.dasein.cloud.compute.ImageCapabilities;
 import org.dasein.cloud.compute.ImageClass;
 import org.dasein.cloud.compute.ImageCreateOptions;
 import org.dasein.cloud.compute.ImageFilterOptions;
 import org.dasein.cloud.compute.MachineImage;
-import org.dasein.cloud.compute.MachineImageFormat;
-import org.dasein.cloud.compute.MachineImageType;
 import org.dasein.cloud.compute.MachineImageState;
 import org.dasein.cloud.compute.Platform;
 import org.dasein.cloud.compute.VirtualMachine;
@@ -66,6 +65,15 @@ public class Templates extends AbstractImageSupport{
     public Templates(@Nonnull Virtustream provider) {
         super(provider);
         this.provider = provider;
+    }
+
+    private transient volatile TemplateCapabilities capabilities;
+    @Override
+    public ImageCapabilities getCapabilities() throws CloudException, InternalException {
+        if( capabilities == null ) {
+            capabilities = new TemplateCapabilities(provider);
+        }
+        return capabilities;
     }
 
     @Nullable
@@ -112,31 +120,6 @@ public class Templates extends AbstractImageSupport{
             VirtualMachine newVM = support.clone(vmid, currentVM.getProviderDataCenterId(), templateName, description, powerOn, currentVM.getProviderFirewallIds());
 
             VirtustreamMethod method = new VirtustreamMethod(provider);
-
-            //disconnect clone from any networks
-            JSONObject nic = new JSONObject();
-            try {
-                nic.put("VirtualMachineID", newVM.getProviderVirtualMachineId());
-                nic.put("VirtualMachineNicID", newVM.getTag("VirtualMachineNicID"));
-            }
-            catch (JSONException ex) {
-                logger.error(ex);
-            }
-
-            String response = method.postString("/VirtualMachine/RemoveNic", nic.toString(), DISCONNECT_NIC);
-            if (response != null && response.length() > 0) {
-                try {
-                    JSONObject json = new JSONObject(response);
-                    provider.parseTaskID(json);
-                }
-                catch (JSONException e) {
-                    logger.error(e);
-                    throw new InternalException("Unable to parse JSON "+e.getMessage());
-                }
-            }
-
-            //list vm details to check nic was disconnected properly
-            support.getVirtualMachine(newVM.getProviderVirtualMachineId());
 
             String obj = method.postString("/VirtualMachine/MarkAsTemplate", newVM.getProviderVirtualMachineId(), CAPTURE_IMAGE);
 
@@ -226,7 +209,7 @@ public class Templates extends AbstractImageSupport{
             }
             VirtustreamMethod method = new VirtustreamMethod(provider);
             ArrayList<ResourceStatus> list = new ArrayList<ResourceStatus>();
-            String obj = method.getString("VirtualMachine?$filter=IsTemplate eq true and IsRemoved eq false and IsGlobalTemplate eq false", LIST_IMAGES);
+            String obj = method.getString("VirtualMachine?$filter=IsTemplate eq true and IsRemoved eq false and TenantID eq '"+getContext().getAccountNumber()+"'", LIST_IMAGES);
             if (obj != null && obj.length() > 0) {
                 JSONArray json = null;
                 JSONObject node = null;
@@ -285,21 +268,12 @@ public class Templates extends AbstractImageSupport{
 
     @Nonnull
     @Override
-    public Iterable<MachineImageFormat> listSupportedFormats() throws CloudException, InternalException {
-        ArrayList<MachineImageFormat> list = new ArrayList<MachineImageFormat>();
-        list.add(MachineImageFormat.VMDK);
-        list.add(MachineImageFormat.OVF);
-        return list;
-    }
-
-    @Nonnull
-    @Override
     public Iterable<MachineImage> listImages(@Nullable ImageFilterOptions options) throws CloudException, InternalException {
         APITrace.begin(provider, GET_IMAGE);
         try {
             VirtustreamMethod method = new VirtustreamMethod(provider);
             ArrayList<MachineImage> list = new ArrayList<MachineImage>();
-            String obj = method.getString("VirtualMachine?$filter=IsTemplate eq true and IsRemoved eq false and IsGlobalTemplate eq false", LIST_IMAGES);
+            String obj = method.getString("VirtualMachine?$filter=IsTemplate eq true and IsRemoved eq false and TenantID eq '"+getContext().getAccountNumber()+"'", LIST_IMAGES);
             if (obj != null && obj.length() > 0) {
                 JSONArray json = null;
                 try {
@@ -359,16 +333,6 @@ public class Templates extends AbstractImageSupport{
 
     @Override
     public boolean supportsCustomImages() throws CloudException, InternalException {
-        return true;
-    }
-
-    @Override
-    public boolean supportsImageCapture(@Nonnull MachineImageType type) throws CloudException, InternalException {
-        return true;
-    }
-
-    @Override
-    public boolean supportsPublicLibrary(@Nonnull ImageClass cls) throws CloudException, InternalException {
         return true;
     }
 
@@ -466,7 +430,16 @@ public class Templates extends AbstractImageSupport{
                 JSONArray disks = node.getJSONArray("Disks");
                 JSONObject disk = disks.getJSONObject(0);
                 int deviceKey = disk.getInt("DeviceKey");
-                properties.put("DeviceKey", Integer.toString(deviceKey));
+                properties.put("diskDeviceKey", Integer.toString(deviceKey));
+            }
+
+            if (node.has("Nics") && !node.isNull("Nics")) {
+                JSONArray nics = node.getJSONArray("Nics");
+                JSONObject nic = nics.getJSONObject(0);
+                int deviceKey = nic.getInt("DeviceKey");
+                properties.put("nicDeviceKey", Integer.toString(deviceKey));
+                String nicID = nic.getString("VirtualMachineNicID");
+                properties.put("nicID", nicID);
             }
 
             if (regionId == null) {

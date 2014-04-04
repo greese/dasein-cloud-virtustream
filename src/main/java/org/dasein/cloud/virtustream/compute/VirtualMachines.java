@@ -22,7 +22,6 @@ package org.dasein.cloud.virtustream.compute;
 import org.apache.log4j.Logger;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
-import org.dasein.cloud.ProviderContext;
 import org.dasein.cloud.Requirement;
 import org.dasein.cloud.ResourceStatus;
 import org.dasein.cloud.compute.AbstractVMSupport;
@@ -30,10 +29,10 @@ import org.dasein.cloud.compute.Architecture;
 import org.dasein.cloud.compute.MachineImage;
 import org.dasein.cloud.compute.Platform;
 import org.dasein.cloud.compute.VirtualMachine;
+import org.dasein.cloud.compute.VirtualMachineCapabilities;
 import org.dasein.cloud.compute.VirtualMachineProduct;
 import org.dasein.cloud.compute.VMFilterOptions;
 import org.dasein.cloud.compute.VMLaunchOptions;
-import org.dasein.cloud.compute.VMScalingCapabilities;
 import org.dasein.cloud.compute.VMScalingOptions;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.dc.DataCenter;
@@ -175,7 +174,8 @@ public class VirtualMachines extends AbstractVMSupport {
                         Storage<Kilobyte> capacity = (Storage<Kilobyte>)size.convertTo(Storage.KILOBYTE);
                         long capacityKB = capacity.longValue();
 
-                        //find a suitable storage location for the hard disk
+                        //find a suitable storage location for the hard disk based on the vms resource pool id
+                        storageComputeId = getComputeIDFromResourcePool(vm.getTag("ResourcePoolID").toString());
                         String storageId = findAvailableStorage(capacityKB, dc);
                         if (storageId == null) {
                             logger.error("No available storage resource in datacenter "+dc.getName());
@@ -285,17 +285,33 @@ public class VirtualMachines extends AbstractVMSupport {
                 logger.error("Vm was cloned without error but new id not returned");
                 throw new CloudException("Vm was cloned without error but new id not returned");
             }
-            return getVirtualMachine(newVMId);
+            long timeout = System.currentTimeMillis()+(CalendarWrapper.MINUTE * 30);
+            VirtualMachine vm = getVirtualMachine(newVMId);
+            while (timeout > System.currentTimeMillis()) {
+                if (vm != null) {
+                    return vm;
+                }
+                try {
+                    Thread.sleep(15000l);
+                    vm = getVirtualMachine(newVMId);
+                }
+                catch (InterruptedException ignore) {}
+            }
+            throw new CloudException("Vm was cloned without error but new vm not found");
         }
         finally {
             APITrace.end();
         }
     }
 
-    @Nullable
+    private transient volatile VMCapabilities capabilities;
+    @Nonnull
     @Override
-    public VMScalingCapabilities describeVerticalScalingCapabilities() throws CloudException, InternalException {
-        return VMScalingCapabilities.getInstance(false, true, Requirement.NONE, Requirement.REQUIRED);
+    public VirtualMachineCapabilities getCapabilities() throws InternalException, CloudException {
+        if( capabilities == null ) {
+            capabilities = new VMCapabilities(provider);
+        }
+        return capabilities;
     }
 
     @Nullable
@@ -322,12 +338,6 @@ public class VirtualMachines extends AbstractVMSupport {
         product.setDescription(product.getName());
         product.setRootVolumeSize(new Storage<Gigabyte>(20, Storage.GIGABYTE));
         return product;
-    }
-
-    @Nonnull
-    @Override
-    public String getProviderTermForServer(@Nonnull Locale locale) {
-        return "VM";
     }
 
     @Nullable
@@ -358,18 +368,6 @@ public class VirtualMachines extends AbstractVMSupport {
         finally {
             APITrace.end();
         }
-    }
-
-    @Nonnull
-    @Override
-    public Requirement identifyRootVolumeRequirement() throws CloudException, InternalException {
-        return Requirement.REQUIRED;
-    }
-
-    @Nonnull
-    @Override
-    public Requirement identifyVlanRequirement() throws CloudException, InternalException {
-        return Requirement.REQUIRED;
     }
 
     @Override
@@ -426,7 +424,9 @@ public class VirtualMachines extends AbstractVMSupport {
                 capacityKB = 20971520;
                 //get the device key for the template
                 MachineImage img = provider.getComputeServices().getImageSupport().getImage(templateId);
-                int deviceKey = Integer.parseInt(img.getTag("DeviceKey").toString());
+                int diskDeviceKey = Integer.parseInt(img.getTag("diskDeviceKey").toString());
+                int nicDeviceKey = Integer.parseInt(img.getTag("nicDeviceKey").toString());
+                String nicID = img.getTag("nicID").toString();
                 String ostype = (img.getPlatform().equals(Platform.WINDOWS)) ? "Windows" : "Linux";
 
                 int cpuCore;
@@ -459,17 +459,17 @@ public class VirtualMachines extends AbstractVMSupport {
                 JSONObject disk = new JSONObject();
                 disk.put("StorageID", storageId);
                 disk.put("CapacityKB", capacityKB);
-                disk.put("DeviceKey", deviceKey);
+                disk.put("DeviceKey", diskDeviceKey);
                 JSONArray disks = new JSONArray();
                 disks.put(disk);
 
                 JSONObject nic = new JSONObject();
                 nic.put("NetworkID", networkId);
                 nic.put("AdapterType", 1);
+                nic.put("DeviceKey", nicDeviceKey);
+                nic.put("VirtualMachineNicID", nicID);
                 JSONArray nics = new JSONArray();
                 nics.put(nic);
-
-
 
                 //customisation of password and ip address and a whole bunch of mandatory params
                /* JSONObject customization = new JSONObject();
@@ -545,9 +545,9 @@ public class VirtualMachines extends AbstractVMSupport {
                     JSONObject json = new JSONObject(obj);
                     String vmId = provider.parseTaskID(json);
                     if (vmId != null) {
-                        // poll for up to 5 minutes - VS can sometimes suffer from race condition problems
+                        // poll for up to 30 minutes - VS can sometimes suffer from race condition problems
                         VirtualMachine vm = null;
-                        long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE * 5l);
+                        long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE * 30l);
                         while (timeout > System.currentTimeMillis()) {
                             vm = getVirtualMachine(vmId);
                             if (vm != null) {
@@ -619,14 +619,6 @@ public class VirtualMachines extends AbstractVMSupport {
             cachedProducts = products;
         }
         return products;
-    }
-
-    @Override
-    public Iterable<Architecture> listSupportedArchitectures() throws InternalException, CloudException {
-        ArrayList<Architecture> list = new ArrayList<Architecture>();
-        list.add(Architecture.I32);
-        list.add(Architecture.I64);
-        return list;
     }
 
     @Nonnull
@@ -814,21 +806,6 @@ public class VirtualMachines extends AbstractVMSupport {
     }
 
     @Override
-    public boolean supportsPauseUnpause(@Nonnull VirtualMachine vm) {
-        return false;
-    }
-
-    @Override
-    public boolean supportsStartStop(@Nonnull VirtualMachine vm) {
-        return true;
-    }
-
-    @Override
-    public boolean supportsSuspendResume(@Nonnull VirtualMachine vm) {
-        return true;
-    }
-
-    @Override
     public void suspend(@Nonnull String vmId) throws CloudException, InternalException {
         APITrace.begin(provider, SUSPEND_VIRTUAL_MACHINE);
         try {
@@ -866,7 +843,7 @@ public class VirtualMachines extends AbstractVMSupport {
             if (!vm.getCurrentState().equals(VmState.STOPPED)) {
                 stop(vmId, true);
                 vm = getVirtualMachine(vmId);
-                long timeout = System.currentTimeMillis()+(CalendarWrapper.MINUTE * 5);
+                long timeout = System.currentTimeMillis()+(CalendarWrapper.MINUTE * 30);
                 while (timeout > System.currentTimeMillis()) {
                     try {
                         Thread.sleep(15000L);
@@ -1151,10 +1128,18 @@ public class VirtualMachines extends AbstractVMSupport {
                             }
                         }
 
+                        JSONArray computeIds = json.getJSONArray("ComputeResourceIDs");
+                        for (int j = 0; j < computeIds.length(); j++) {
+                            String computeID = computeIds.getString(j);
+                            if (computeID.equals(storageComputeId)) {
+                                found = true;
+                                break;
+                            }
+                        }
                         // as long as the storage has enough free space we can use it
                         if (capacityKB <= freeSpaceKB && found) {
-                            map.put(id, percentFree);
-                        }
+                                map.put(id, percentFree);
+                            }
                     }
                 }
                 if (map.isEmpty()) {
@@ -1259,4 +1244,29 @@ public class VirtualMachines extends AbstractVMSupport {
         }
     }
 
+    private String getComputeIDFromResourcePool(@Nonnull String resourcePoolID) throws InternalException, CloudException {
+        APITrace.begin(provider, FIND_RESOURCE_POOL);
+        try {
+            try {
+                VirtustreamMethod method = new VirtustreamMethod(provider);
+                String obj = method.getString("/ResourcePool/"+resourcePoolID+"?$filter=IsRemoved eq false", FIND_RESOURCE_POOL);
+
+                if (obj != null && obj.length() > 0) {
+                    JSONObject json = new JSONObject(obj);
+
+                    String computeId = json.getString("ComputeResourceID");
+                    return computeId;
+                }
+                logger.error("No available resource pool with id "+resourcePoolID);
+                throw new CloudException("No available resource pool with id "+resourcePoolID);
+            }
+            catch (JSONException e) {
+                logger.error(e);
+                throw new InternalException("Unable to parse JSONObject "+e.getMessage());
+            }
+        }
+        finally {
+            APITrace.end();
+        }
+    }
 }

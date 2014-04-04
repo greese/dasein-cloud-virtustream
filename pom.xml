@@ -3,7 +3,7 @@
   
   <groupId>org.dasein</groupId>
   <artifactId>dasein-cloud-virtustream</artifactId>
-  <version>2013.07.7</version>
+  <version>2014.03.2-SNAPSHOT</version>
   
   <name>Dasein Cloud Virtustream</name>
   <description>Dasein Cloud implementation for the Virtustream cloud</description>
@@ -41,7 +41,7 @@
     <dependency>
         <groupId>org.dasein</groupId>
         <artifactId>dasein-cloud-core</artifactId>
-        <version>2013.07.1</version>
+        <version>2014.03.2-SNAPSHOT</version>
         <scope>compile</scope>
         <optional>false</optional>
     </dependency>   
@@ -69,7 +69,7 @@
       <dependency>
           <groupId>org.dasein</groupId>
           <artifactId>dasein-cloud-test</artifactId>
-          <version>2013.07.1</version>
+          <version>2014.03.2-SNAPSHOT</version>
           <scope>test</scope>
           <optional>false</optional>
       </dependency>
@@ -178,11 +178,11 @@
                     <value>${accountNumber}</value>
                 </property>
                 <property>
-                    <name>accessPublic</name>
+                    <name>apiKeyShared</name>
                     <value>${apiSharedKey}</value>
                 </property>
                 <property>
-                    <name>accessPrivate</name>
+                    <name>apiKeySecret</name>
                     <value>${apiSecretKey}</value>
                 </property>
                 <property>

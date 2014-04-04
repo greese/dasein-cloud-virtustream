@@ -41,6 +41,7 @@ import org.apache.http.util.EntityUtils;
 import org.apache.log4j.Logger;
 import org.dasein.cloud.CloudErrorType;
 import org.dasein.cloud.CloudException;
+import org.dasein.cloud.ContextRequirements;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.ProviderContext;
 import org.dasein.cloud.util.APITrace;
@@ -62,6 +63,7 @@ import java.security.SignatureException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 import java.util.Properties;
 import java.util.TimeZone;
 
@@ -213,12 +215,23 @@ public class VirtustreamMethod {
                     HttpGet get = new HttpGet(target);
                     String auth;
 
+                    String accessPublic = null;
+                    String accessPrivate = null;
                     try {
-                        String userName = new String(ctx.getAccessPublic(), "utf-8");
-                        String password = new String(ctx.getAccessPrivate(), "utf-8");
-
-                        auth = getSignature(ctx.getRegionId(), userName, password, "1");
-                    } catch (UnsupportedEncodingException e) {
+                        List<ContextRequirements.Field> fields = provider.getContextRequirements().getConfigurableValues();
+                        for(ContextRequirements.Field f : fields ) {
+                            if(f.type.equals(ContextRequirements.FieldType.KEYPAIR)){
+                                byte[][] keyPair = (byte[][])provider.getContext().getConfigurationValue(f);
+                                accessPublic = new String(keyPair[0], "utf-8");
+                                accessPrivate = new String(keyPair[1], "utf-8");
+                            }
+                        }
+                        auth = getSignature(ctx.getRegionId(), accessPublic, accessPrivate, "1");
+                    }
+                    catch( UnsupportedEncodingException e ) {
+                        throw new InternalException(e);
+                    }
+                    catch( SignatureException e ) {
                         throw new InternalException(e);
                     }
                     catch( SignatureException e ) {
@@ -363,12 +376,23 @@ public class VirtustreamMethod {
                     HttpPost post = new HttpPost(target);
                     String auth;
 
+                    String accessPublic = null;
+                    String accessPrivate = null;
                     try {
-                        String userName = new String(ctx.getAccessPublic(), "utf-8");
-                        String password = new String(ctx.getAccessPrivate(), "utf-8");
-
-                        auth = getSignature(ctx.getRegionId(), userName, password, "1");
-                    } catch (UnsupportedEncodingException e) {
+                        List<ContextRequirements.Field> fields = provider.getContextRequirements().getConfigurableValues();
+                        for(ContextRequirements.Field f : fields ) {
+                            if(f.type.equals(ContextRequirements.FieldType.KEYPAIR)){
+                                byte[][] keyPair = (byte[][])provider.getContext().getConfigurationValue(f);
+                                accessPublic = new String(keyPair[0], "utf-8");
+                                accessPrivate = new String(keyPair[1], "utf-8");
+                            }
+                        }
+                        auth = getSignature(ctx.getRegionId(), accessPublic, accessPrivate, "1");
+                    }
+                    catch( UnsupportedEncodingException e ) {
+                        throw new InternalException(e);
+                    }
+                    catch( SignatureException e ) {
                         throw new InternalException(e);
                     }
                     catch( SignatureException e ) {
@@ -531,12 +555,20 @@ public class VirtustreamMethod {
                     HttpGet get = new HttpGet(target);
                     String auth;
 
+                    String accessPublic = null;
+                    String accessPrivate = null;
                     try {
-                        String userName = new String(ctx.getAccessPublic(), "utf-8");
-                        String password = new String(ctx.getAccessPrivate(), "utf-8");
-
-                        auth = getSignature(ctx.getRegionId(), userName, password, "1");
-                    } catch (UnsupportedEncodingException e) {
+                        List<ContextRequirements.Field> fields = provider.getContextRequirements().getConfigurableValues();
+                        for(ContextRequirements.Field f : fields ) {
+                            if(f.type.equals(ContextRequirements.FieldType.KEYPAIR)){
+                                byte[][] keyPair = (byte[][])provider.getContext().getConfigurationValue(f);
+                                accessPublic = new String(keyPair[0], "utf-8");
+                                accessPrivate = new String(keyPair[1], "utf-8");
+                            }
+                        }
+                        auth = getSignature(ctx.getRegionId(), accessPublic, accessPrivate, "1");
+                    }
+                    catch( UnsupportedEncodingException e ) {
                         throw new InternalException(e);
                     }
                     catch( SignatureException e ) {

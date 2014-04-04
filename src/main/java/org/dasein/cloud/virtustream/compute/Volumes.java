@@ -26,6 +26,7 @@ import org.dasein.cloud.ResourceStatus;
 import org.dasein.cloud.compute.AbstractVolumeSupport;
 import org.dasein.cloud.compute.Platform;
 import org.dasein.cloud.compute.Volume;
+import org.dasein.cloud.compute.VolumeCapabilities;
 import org.dasein.cloud.compute.VolumeFilterOptions;
 import org.dasein.cloud.compute.VolumeFormat;
 import org.dasein.cloud.compute.VolumeState;
@@ -62,6 +63,15 @@ public class Volumes extends AbstractVolumeSupport {
     public Volumes(@Nonnull Virtustream provider) {
         super(provider);
         this.provider = provider;
+    }
+
+    private transient volatile VSVolumeCapabilities capabilities;
+    @Override
+    public VolumeCapabilities getCapabilities() throws CloudException, InternalException {
+        if( capabilities == null ) {
+            capabilities = new VSVolumeCapabilities(provider);
+        }
+        return capabilities;
     }
 
     @Nullable
@@ -184,7 +194,7 @@ public class Volumes extends AbstractVolumeSupport {
     transient String vmID = null;
     transient String dataCenterID = null;
     transient String regionID = null;
-    transient Platform platform = null;
+    transient Platform platfrom = null;
     @Nonnull
     @Override
     public Iterable<Volume> listVolumes(@Nullable VolumeFilterOptions options) throws InternalException, CloudException {
@@ -211,7 +221,7 @@ public class Volumes extends AbstractVolumeSupport {
                             JSONObject diskJson = disks.getJSONObject(j);
 
                             // create Volume object
-                            Volume volume = toVolume(vmID, platform, regionID, dataCenterID, diskJson);
+                            Volume volume = toVolume(vmID, platfrom, regionID, dataCenterID, diskJson);
                             if (volume != null && (options == null || options.matches(volume))) {
                                 list.add(volume);
                             }
@@ -290,7 +300,7 @@ public class Volumes extends AbstractVolumeSupport {
                     regionID = r.getString("RegionID");
                 }
             }
-            platform = Platform.guess(json.getString("OS"));
+            platfrom = Platform.guess(json.getString("OS"));
         }
         catch (JSONException e) {
             logger.error(e);
@@ -326,7 +336,6 @@ public class Volumes extends AbstractVolumeSupport {
                 volume.setRootVolume(true);
                 volume.setGuestOperatingSystem(platform);
             }
-
             return volume;
         }
         catch (JSONException e) {
