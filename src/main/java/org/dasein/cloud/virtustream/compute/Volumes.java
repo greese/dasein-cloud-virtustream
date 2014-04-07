@@ -122,15 +122,15 @@ public class Volumes extends AbstractVolumeSupport {
                 list.add("hdj");
             }
             else {
-                list.add("/dev/xvda");
-                list.add("/dev/xvdb");
-                list.add("/dev/xvdc");
-                list.add("/dev/xvde");
-                list.add("/dev/xvdf");
-                list.add("/dev/xvdg");
-                list.add("/dev/xvdh");
-                list.add("/dev/xvdi");
-                list.add("/dev/xvdj");
+                list.add("sda1");
+                list.add("sda2");
+                list.add("sda3");
+                list.add("sda4");
+                list.add("sda5");
+                list.add("sda6");
+                list.add("sda7");
+                list.add("sda8");
+                list.add("sda9");
             }
             ids = Collections.unmodifiableList(list);
             cache.put(getContext(), ids);
