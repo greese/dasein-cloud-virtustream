@@ -451,6 +451,8 @@ public class Templates extends AbstractImageSupport{
                 properties.put("nicDeviceKey", Integer.toString(deviceKey));
                 String nicID = nic.getString("VirtualMachineNicID");
                 properties.put("nicID", nicID);
+                int adapterType = nic.getInt("AdapterType");
+                properties.put("nicAdapterType", Integer.toString(adapterType));
             }
 
             if (regionId == null) {

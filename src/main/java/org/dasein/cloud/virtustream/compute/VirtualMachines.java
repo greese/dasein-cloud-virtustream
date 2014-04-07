@@ -441,6 +441,7 @@ public class VirtualMachines extends AbstractVMSupport {
                 MachineImage img = provider.getComputeServices().getImageSupport().getImage(templateId);
                 int diskDeviceKey = Integer.parseInt(img.getTag("diskDeviceKey").toString());
                 int nicDeviceKey = Integer.parseInt(img.getTag("nicDeviceKey").toString());
+                int adapterType = Integer.parseInt(img.getTag("nicAdapterType").toString());
                 String nicID = img.getTag("nicID").toString();
                 String ostype = (img.getPlatform().equals(Platform.WINDOWS)) ? "Windows" : "Linux";
                 int cpuCore;
@@ -479,7 +480,7 @@ public class VirtualMachines extends AbstractVMSupport {
 
                 JSONObject nic = new JSONObject();
                 nic.put("NetworkID", networkId);
-                nic.put("AdapterType", 1);
+                nic.put("AdapterType", adapterType);
                 nic.put("DeviceKey", nicDeviceKey);
                 nic.put("VirtualMachineNicID", nicID);
                 JSONArray nics = new JSONArray();
