@@ -458,8 +458,14 @@ public class VirtualMachines extends AbstractVMSupport {
                     ramAllocated = 2048;
                 }
                 // get suitable resource pool according to selected network
-                String networkComputeResourceId = getComputeResourceOfNetwork(networkId);
-                String resourcePoolId = findAvailableResourcePool(dc, networkComputeResourceId);
+                ArrayList<String> networkComputeResourceIds = getComputeResourceOfNetwork(networkId);
+                String resourcePoolId = null;
+                for (int i = 0; i<networkComputeResourceIds.size(); i++) {
+                    resourcePoolId = findAvailableResourcePool(dc, networkComputeResourceIds.get(i));
+                    if (resourcePoolId != null) {
+                        break;
+                    }
+                }
                 if (resourcePoolId == null) {
                     logger.error("No available resource pool in datacenter "+dc.getName());
                     throw new CloudException("No available resource pool in datacenter "+dc.getName());
@@ -1232,8 +1238,8 @@ public class VirtualMachines extends AbstractVMSupport {
                         }
                     }
                 }
-                logger.error("No available resource pool in datacenter "+dataCenter.getName());
-                throw new CloudException("No available resource pool in datacenter "+dataCenter.getName());
+                logger.warn("No available resource pool in datacenter "+dataCenter.getName());
+                return null;
             }
             catch (JSONException e) {
                 logger.error(e);
@@ -1273,12 +1279,18 @@ public class VirtualMachines extends AbstractVMSupport {
         return false;
     }
 
-    private String getComputeResourceOfNetwork(@Nonnull String networkId) throws CloudException, InternalException {
+    private ArrayList<String> getComputeResourceOfNetwork(@Nonnull String networkId) throws CloudException, InternalException {
         APITrace.begin(provider, "getNetworkComputeResourceID");
         try {
             Networks services = provider.getNetworkServices().getVlanSupport();
             VLAN vlan = services.getVlan(networkId);
-            return vlan.getTag("computeResourceID");
+            int length = Integer.parseInt(vlan.getTag("numComputeIds"));
+            ArrayList<String> list = new ArrayList<String>();
+            for (int i = 0; i<length; i++) {
+               String tag = "computeResourceID"+i;
+               list.add(vlan.getTag(tag));
+            }
+            return list;
 
         }
         finally {
