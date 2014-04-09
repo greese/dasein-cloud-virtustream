@@ -251,8 +251,11 @@ public class Networks extends AbstractVLANSupport {
 
             if (json.has("ComputeResourceIDs") && !json.isNull("ComputeResourceIDs")) {
                 JSONArray list = json.getJSONArray("ComputeResourceIDs");
-                String computeResourceID =  list.getString(0);
-                vlan.setTag("computeResourceID", computeResourceID);
+                vlan.setTag("numComputeIds", Integer.toString(list.length()));
+                for ( int i = 0; i<list.length(); i++) {
+                    String computeResourceID =  list.getString(i);
+                    vlan.setTag("computeResourceID"+i, computeResourceID);
+                }
             }
 
             if (vlan.getName() == null) {
