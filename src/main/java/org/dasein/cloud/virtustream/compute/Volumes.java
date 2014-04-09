@@ -122,15 +122,15 @@ public class Volumes extends AbstractVolumeSupport {
                 list.add("hdj");
             }
             else {
-                list.add("sda1");
-                list.add("sda2");
-                list.add("sda3");
-                list.add("sda4");
-                list.add("sda5");
-                list.add("sda6");
-                list.add("sda7");
-                list.add("sda8");
-                list.add("sda9");
+                list.add("/dev/sda");
+                list.add("/dev/sdb");
+                list.add("/dev/sdc");
+                list.add("/dev/sdd");
+                list.add("/dev/sde");
+                list.add("/dev/sdf");
+                list.add("/dev/sdg");
+                list.add("/dev/sdh");
+                list.add("/dev/sdi");
             }
             ids = Collections.unmodifiableList(list);
             cache.put(getContext(), ids);
@@ -322,7 +322,7 @@ public class Volumes extends AbstractVolumeSupport {
             String deviceId = json.getString("UnitNumber");
             volume.setDeviceId(toDeviceID(deviceId, platform.equals(Platform.WINDOWS)));
             int diskNum = json.getInt("DiskNumber");
-            if (diskNum == 1) {
+            if (diskNum == 0) {
                 volume.setRootVolume(true);
                 volume.setGuestOperatingSystem(platform);
             }
@@ -340,16 +340,16 @@ public class Volumes extends AbstractVolumeSupport {
             return null;
         }
         if (!isWindows){
-            if( deviceNumber.equals("0") ) { return "/dev/xvda"; }
-            else if( deviceNumber.equals("1") ) { return "/dev/xvdb"; }
-            else if( deviceNumber.equals("2") ) { return "/dev/xvdc"; }
-            else if( deviceNumber.equals("4") ) { return "/dev/xvde"; }
-            else if( deviceNumber.equals("5") ) { return "/dev/xvdf"; }
-            else if( deviceNumber.equals("6") ) { return "/dev/xvdg"; }
-            else if( deviceNumber.equals("7") ) { return "/dev/xvdh"; }
-            else if( deviceNumber.equals("8") ) { return "/dev/xvdi"; }
-            else if( deviceNumber.equals("9") ) { return "/dev/xvdj"; }
-            else { return "/dev/xvdj"; }
+            if( deviceNumber.equals("0") ) { return "/dev/sda"; }
+            else if( deviceNumber.equals("1") ) { return "/dev/sdb"; }
+            else if( deviceNumber.equals("2") ) { return "/dev/sdc"; }
+            else if( deviceNumber.equals("3") ) { return "/dev/sdd"; }
+            else if( deviceNumber.equals("4") ) { return "/dev/sde"; }
+            else if( deviceNumber.equals("5") ) { return "/dev/sdf"; }
+            else if( deviceNumber.equals("6") ) { return "/dev/sdg"; }
+            else if( deviceNumber.equals("8") ) { return "/dev/sdh"; }
+            else if( deviceNumber.equals("9") ) { return "/dev/sdi"; }
+            else { return "/dev/sdi"; }
         }
         else{
             if( deviceNumber.equals("0") ) { return "hda"; }
