@@ -168,6 +168,7 @@ public class VirtustreamStorageMethod {
                 wire.debug("");
                 wire.debug(">>> [POST (" + (new Date()) + ")] -> " + target + " >--------------------------------------------------------------------------------------");
             }
+            HttpClient client = null;
             try {
                 URI uri;
 
@@ -177,7 +178,7 @@ public class VirtustreamStorageMethod {
                 } catch (URISyntaxException e) {
                     throw new InternalException(e);
                 }
-                HttpClient client = getClient(uri);
+                client = getClient(uri);
 
                 try {
                     ProviderContext ctx = provider.getContext();
@@ -284,6 +285,9 @@ public class VirtustreamStorageMethod {
                     wire.debug("<<< [POST (" + (new Date()) + ")] -> " + target + " <--------------------------------------------------------------------------------------");
                     wire.debug("");
                 }
+                if (client != null) {
+                    client.getConnectionManager().shutdown();
+                }
             }
         } finally {
             if (logger.isTraceEnabled()) {
@@ -305,6 +309,7 @@ public class VirtustreamStorageMethod {
                 wire.debug("");
                 wire.debug(">>> [GET (" + (new Date()) + ")] -> " + target + " >--------------------------------------------------------------------------------------");
             }
+            HttpClient client = null;
             try {
                 URI uri;
 
@@ -314,7 +319,7 @@ public class VirtustreamStorageMethod {
                 } catch (URISyntaxException e) {
                     throw new InternalException(e);
                 }
-                HttpClient client = getClient(uri);
+                client = getClient(uri);
 
                 try {
                     ProviderContext ctx = provider.getContext();
@@ -409,6 +414,9 @@ public class VirtustreamStorageMethod {
                     wire.debug("<<< [GET (" + (new Date()) + ")] -> " + target + " <--------------------------------------------------------------------------------------");
                     wire.debug("");
                 }
+                if (client != null) {
+                    client.getConnectionManager().shutdown();
+                }
             }
         } finally {
             if (logger.isTraceEnabled()) {
@@ -429,6 +437,7 @@ public class VirtustreamStorageMethod {
                 wire.debug("");
                 wire.debug(">>> [DELETE (" + (new Date()) + ")] -> " + target + " >--------------------------------------------------------------------------------------");
             }
+            HttpClient client = null;
             try {
                 URI uri;
 
@@ -438,7 +447,7 @@ public class VirtustreamStorageMethod {
                 } catch (URISyntaxException e) {
                     throw new InternalException(e);
                 }
-                HttpClient client = getClient(uri);
+                client = getClient(uri);
 
                 try {
                     ProviderContext ctx = provider.getContext();
@@ -538,6 +547,9 @@ public class VirtustreamStorageMethod {
                 if (wire.isDebugEnabled()) {
                     wire.debug("<<< [POST (" + (new Date()) + ")] -> " + target + " <--------------------------------------------------------------------------------------");
                     wire.debug("");
+                }
+                if (client != null) {
+                    client.getConnectionManager().shutdown();
                 }
             }
         } finally {
