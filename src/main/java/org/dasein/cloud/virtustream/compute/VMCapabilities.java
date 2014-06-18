@@ -205,4 +205,9 @@ public class VMCapabilities extends AbstractCapabilities<Virtustream> implements
         list.add(Architecture.I64);
         return list;
     }
+
+    @Override
+    public boolean supportsSpotVirtualMachines() throws InternalException, CloudException {
+        return false;
+    }
 }
