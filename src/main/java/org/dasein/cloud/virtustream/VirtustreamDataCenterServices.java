@@ -26,6 +26,7 @@ import org.dasein.cloud.ProviderContext;
 import org.dasein.cloud.dc.DataCenter;
 import org.dasein.cloud.dc.DataCenterServices;
 import org.dasein.cloud.dc.Region;
+import org.dasein.cloud.dc.ResourcePool;
 import org.dasein.cloud.util.APITrace;
 import org.dasein.cloud.util.Cache;
 import org.dasein.cloud.util.CacheLevel;
@@ -38,6 +39,7 @@ import org.json.JSONObject;
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Locale;
 
 public class VirtustreamDataCenterServices implements DataCenterServices {
@@ -277,5 +279,20 @@ public class VirtustreamDataCenterServices implements DataCenterServices {
             logger.error(e);
             throw new InternalException("Unable to parse JSONObject "+e.getMessage());
         }
+    }
+
+    @Override
+    public boolean supportsResourcePools() {
+        return false;
+    }
+
+    @Override
+    public Collection<ResourcePool> listResourcePools(String providerDataCenterId) throws InternalException, CloudException {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public ResourcePool getResourcePool(String providerResourcePoolId) throws InternalException, CloudException {
+        return null;
     }
 }
