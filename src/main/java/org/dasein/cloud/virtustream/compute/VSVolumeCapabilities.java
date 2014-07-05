@@ -29,6 +29,7 @@ import org.dasein.cloud.compute.VolumeCapabilities;
 import org.dasein.cloud.compute.VolumeFormat;
 import org.dasein.cloud.util.Cache;
 import org.dasein.cloud.util.CacheLevel;
+import org.dasein.cloud.util.NamingConstraints;
 import org.dasein.cloud.virtustream.Virtustream;
 import org.dasein.util.uom.storage.Gigabyte;
 import org.dasein.util.uom.storage.Storage;
@@ -75,6 +76,12 @@ public class VSVolumeCapabilities extends AbstractCapabilities<Virtustream> impl
     @Override
     public Storage<Gigabyte> getMinimumVolumeSize() throws InternalException, CloudException {
         return new Storage<Gigabyte>(1, Storage.GIGABYTE);
+    }
+
+    @Nonnull
+    @Override
+    public NamingConstraints getVolumeNamingConstraints() throws CloudException, InternalException {
+        return null;
     }
 
     @Nonnull

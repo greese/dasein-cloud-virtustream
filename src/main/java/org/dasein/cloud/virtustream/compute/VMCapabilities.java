@@ -19,11 +19,7 @@
 
 package org.dasein.cloud.virtustream.compute;
 
-import org.dasein.cloud.AbstractCapabilities;
-import org.dasein.cloud.Capabilities;
-import org.dasein.cloud.CloudException;
-import org.dasein.cloud.InternalException;
-import org.dasein.cloud.Requirement;
+import org.dasein.cloud.*;
 import org.dasein.cloud.compute.Architecture;
 import org.dasein.cloud.compute.ImageClass;
 import org.dasein.cloud.compute.Platform;
@@ -129,6 +125,16 @@ public class VMCapabilities extends AbstractCapabilities<Virtustream> implements
         return NamingConstraints.getAlphaNumeric(1, 100);
     }
 
+    @Nullable
+    @Override
+    public VisibleScope getVirtualMachineVisibleScope() {
+        return null;
+    }
+
+    @Nullable @Override public VisibleScope getVirtualMachineProductVisibleScope() {
+        return null;
+    }
+
     @Nonnull
     @Override
     public Requirement identifyDataCenterLaunchRequirement() throws CloudException, InternalException {
@@ -204,5 +210,10 @@ public class VMCapabilities extends AbstractCapabilities<Virtustream> implements
         list.add(Architecture.I32);
         list.add(Architecture.I64);
         return list;
+    }
+
+    @Override
+    public boolean supportsSpotVirtualMachines() throws InternalException, CloudException {
+        return false;
     }
 }
