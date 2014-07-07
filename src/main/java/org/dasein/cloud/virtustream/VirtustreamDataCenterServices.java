@@ -23,10 +23,7 @@ import org.apache.log4j.Logger;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.ProviderContext;
-import org.dasein.cloud.dc.DataCenter;
-import org.dasein.cloud.dc.DataCenterServices;
-import org.dasein.cloud.dc.Region;
-import org.dasein.cloud.dc.ResourcePool;
+import org.dasein.cloud.dc.*;
 import org.dasein.cloud.util.APITrace;
 import org.dasein.cloud.util.Cache;
 import org.dasein.cloud.util.CacheLevel;
@@ -53,6 +50,16 @@ public class VirtustreamDataCenterServices implements DataCenterServices {
     private Virtustream provider;
 
     public VirtustreamDataCenterServices(Virtustream provider) { this.provider = provider; }
+
+    private transient volatile VirtustreamDataCenterCapabilities capabilities;
+    @Nonnull
+    @Override
+    public DataCenterCapabilities getCapabilities() throws InternalException, CloudException {
+        if( capabilities == null ) {
+            capabilities = new VirtustreamDataCenterCapabilities(provider);
+        }
+        return capabilities;
+    }
 
     @Override
     public DataCenter getDataCenter(String providerDataCenterId) throws InternalException, CloudException {
@@ -279,11 +286,6 @@ public class VirtustreamDataCenterServices implements DataCenterServices {
             logger.error(e);
             throw new InternalException("Unable to parse JSONObject "+e.getMessage());
         }
-    }
-
-    @Override
-    public boolean supportsResourcePools() {
-        return false;
     }
 
     @Override
