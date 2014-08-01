@@ -26,7 +26,17 @@ public class VirtustreamDataCenterCapabilities extends AbstractCapabilities<Virt
     }
 
     @Override
+    public boolean supportsAffinityGroups() {
+        return false;
+    }
+
+    @Override
     public boolean supportsResourcePools() {
+        return false;
+    }
+
+    @Override
+    public boolean supportsStoragePools() {
         return false;
     }
 }
