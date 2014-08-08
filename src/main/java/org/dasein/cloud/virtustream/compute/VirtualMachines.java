@@ -22,7 +22,6 @@ package org.dasein.cloud.virtustream.compute;
 import org.apache.log4j.Logger;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
-import org.dasein.cloud.Requirement;
 import org.dasein.cloud.ResourceStatus;
 import org.dasein.cloud.compute.AbstractVMSupport;
 import org.dasein.cloud.compute.Architecture;
@@ -31,6 +30,7 @@ import org.dasein.cloud.compute.Platform;
 import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.compute.VirtualMachineCapabilities;
 import org.dasein.cloud.compute.VirtualMachineProduct;
+import org.dasein.cloud.compute.VirtualMachineProductFilterOptions;
 import org.dasein.cloud.compute.VMFilterOptions;
 import org.dasein.cloud.compute.VMLaunchOptions;
 import org.dasein.cloud.compute.VMScalingOptions;
@@ -39,15 +39,18 @@ import org.dasein.cloud.dc.DataCenter;
 import org.dasein.cloud.network.RawAddress;
 import org.dasein.cloud.network.VLAN;
 import org.dasein.cloud.util.APITrace;
+import org.dasein.cloud.util.Cache;
+import org.dasein.cloud.util.CacheLevel;
 import org.dasein.cloud.virtustream.Virtustream;
 import org.dasein.cloud.virtustream.VirtustreamMethod;
 import org.dasein.cloud.virtustream.network.Networks;
-import org.dasein.cloud.virtustream.network.VirtustreamNetworkServices;
 import org.dasein.util.CalendarWrapper;
 import org.dasein.util.uom.storage.Gigabyte;
 import org.dasein.util.uom.storage.Kilobyte;
 import org.dasein.util.uom.storage.Megabyte;
 import org.dasein.util.uom.storage.Storage;
+import org.dasein.util.uom.time.Day;
+import org.dasein.util.uom.time.TimePeriod;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -59,11 +62,9 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.Locale;
+import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Random;
-import java.util.TimeZone;
 
 public class VirtualMachines extends AbstractVMSupport {
     static private final Logger logger = Logger.getLogger(VirtualMachines.class);
@@ -608,22 +609,64 @@ public class VirtualMachines extends AbstractVMSupport {
         return password.toString();
     }
 
-    private transient ArrayList<VirtualMachineProduct> cachedProducts;
-
-    @Nonnull
     @Override
-    public Iterable<VirtualMachineProduct> listProducts(@Nonnull Architecture architecture) throws InternalException, CloudException {
-        ArrayList<VirtualMachineProduct> products = cachedProducts;
+    public @Nonnull Iterable<VirtualMachineProduct> listProducts(@Nonnull Architecture architecture) throws InternalException, CloudException {
+        return listProducts(null, architecture);
+    }
+
+    @Override
+    public Iterable<VirtualMachineProduct> listProducts( VirtualMachineProductFilterOptions options ) throws InternalException, CloudException {
+        List<VirtualMachineProduct> products = new ArrayList<VirtualMachineProduct>();
+        for( Architecture arch : Architecture.values() ) {
+            mergeProductLists(products, listProducts(options, arch));
+        }
+        return products;
+    }
+
+    // Merges product iterable to the list, using providerProductId as a unique key
+    private void mergeProductLists(List<VirtualMachineProduct> to, Iterable<VirtualMachineProduct> from) {
+        List<VirtualMachineProduct> copy = new ArrayList<VirtualMachineProduct>(to);
+        for( VirtualMachineProduct productFrom : from ) {
+            boolean found = false;
+            for( VirtualMachineProduct productTo : copy ) {
+                if( productTo.getProviderProductId().equalsIgnoreCase(productFrom.getProviderProductId()) ) {
+                    found = true;
+                    break;
+                }
+            }
+            if( !found ) {
+                to.add(productFrom);
+            }
+        }
+    }
+
+    @Override
+    public Iterable<VirtualMachineProduct> listProducts(VirtualMachineProductFilterOptions options, Architecture architecture) throws InternalException, CloudException {
+        String cacheName = "productsALL";
+        if( architecture != null ) {
+            cacheName = "products" + architecture.name();
+        }
+        Cache<VirtualMachineProduct> cache = Cache.getInstance(getProvider(), cacheName, VirtualMachineProduct.class, CacheLevel.REGION, new TimePeriod<Day>(1, TimePeriod.DAY));
+        Iterable<VirtualMachineProduct> products = cache.get(getContext());
 
         if (products == null) {
-            products = new ArrayList<VirtualMachineProduct>();
+            ArrayList<VirtualMachineProduct> list = new ArrayList<VirtualMachineProduct>();
 
             for (int ram : new int[]{1024, 2048, 4096, 8192, 12288, 16384, 20480, 24576, 28668, 32768}) {
                 for (int cpuCount : new int[]{1, 2, 3, 4, 5, 6, 7, 8}) {
-                    products.add(getProduct(ram + ":" + cpuCount));
+                    VirtualMachineProduct product = getProduct(ram + ":" + cpuCount);
+                    if (options != null) {
+                        if (options.matches(product)) {
+                            list.add(product);
+                        }
+                    }
+                    else {
+                        list.add(product);
+                    }
                 }
             }
-            cachedProducts = products;
+            products = list;
+            cache.put(getContext(), products);
         }
         return products;
     }
