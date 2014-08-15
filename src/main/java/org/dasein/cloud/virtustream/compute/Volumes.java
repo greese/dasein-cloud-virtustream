@@ -163,6 +163,9 @@ public class Volumes extends AbstractVolumeSupport {
                     for (int i=0; i<array.length(); i++) {
                         JSONObject json = array.getJSONObject(i);
 
+                        if (json.isNull("Disks")) {
+                            continue;
+                        }
                         JSONArray disks = json.getJSONArray("Disks");
                         for (int j=0; j<disks.length(); j++) {
                             JSONObject diskJson = disks.getJSONObject(j);

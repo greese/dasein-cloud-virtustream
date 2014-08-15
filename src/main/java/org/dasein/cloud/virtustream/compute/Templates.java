@@ -401,6 +401,9 @@ public class Templates extends AbstractImageSupport{
             }
 
             platform = Platform.guess(node.getString("OS"));
+            if (platform.equals(Platform.UNKNOWN)) {
+                platform = Platform.guess(name);
+            }
             architecture = guess(node.getString("OSFullName"));
 
             if (node.has("TenantID") && !node.isNull("TenantID")) {
