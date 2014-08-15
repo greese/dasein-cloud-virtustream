@@ -1005,10 +1005,18 @@ public class VirtualMachines extends AbstractVMSupport {
                     Date d = f.parse(string_date);
                     long milliseconds = d.getTime();
                     vm.setLastBootTimestamp(milliseconds);
-                    vm.setCreationTimestamp(milliseconds);
                 }
                 catch (ParseException e) {
-                    logger.error(e);
+                    logger.warn("Trying another date format");
+                    try {
+                        f = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+                        Date d = f.parse(string_date);
+                        long milliseconds = d.getTime();
+                        vm.setLastBootTimestamp(milliseconds);
+                    }
+                    catch (ParseException ex) {
+                        logger.error(ex);
+                    }
                 }
             }
 
