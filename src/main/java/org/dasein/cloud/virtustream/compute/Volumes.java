@@ -261,16 +261,22 @@ public class Volumes extends AbstractVolumeSupport {
                 JSONObject json = new JSONObject();
                 json.put("VirtualMachineDiskID", volumeId);
 
-                String vmID = getVolume(volumeId).getProviderVirtualMachineId();
-                json.put("VirtualMachineID", vmID);
+                Volume vol =  getVolume(volumeId);
+                if (vol != null) {
+                    String vmID = vol.getProviderVirtualMachineId();
+                    json.put("VirtualMachineID", vmID);
 
-                String body = json.toString();
-                String obj = method.postString("/VirtualMachine/RemoveDisk", body, REMOVE_VOLUMES);
-                if (obj != null && obj.length() > 0) {
-                    JSONObject response = new JSONObject(obj);
-                    if (provider.parseTaskID(response) == null) {
-                        logger.warn("No confirmation of RemoveVolume task completion but no error either");
+                    String body = json.toString();
+                    String obj = method.postString("/VirtualMachine/RemoveDisk", body, REMOVE_VOLUMES);
+                    if (obj != null && obj.length() > 0) {
+                        JSONObject response = new JSONObject(obj);
+                        if (provider.parseTaskID(response) == null) {
+                            logger.warn("No confirmation of RemoveVolume task completion but no error either");
+                        }
                     }
+                }
+                else {
+                    throw new CloudException("Cannot find volume with id "+volumeId);
                 }
             }
             catch (JSONException e) {
