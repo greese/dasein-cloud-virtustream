@@ -12,9 +12,11 @@ import java.util.Locale;
  * Time: 16:30
  */
 public class VirtustreamDataCenterCapabilities extends AbstractCapabilities<Virtustream> implements DataCenterCapabilities {
+
     public VirtustreamDataCenterCapabilities(@Nonnull Virtustream provider) {
         super(provider);
     }
+
     @Override
     public String getProviderTermForDataCenter(Locale locale) {
         return "site";
@@ -37,6 +39,11 @@ public class VirtustreamDataCenterCapabilities extends AbstractCapabilities<Virt
 
     @Override
     public boolean supportsStoragePools() {
+        return false;
+    }
+
+    @Override
+    public boolean supportsFolders() {
         return false;
     }
 }

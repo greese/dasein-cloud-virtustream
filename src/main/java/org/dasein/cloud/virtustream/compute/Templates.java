@@ -44,12 +44,9 @@ import org.json.JSONObject;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Locale;
+import java.util.*;
 
-public class Templates extends AbstractImageSupport{
+public class Templates extends AbstractImageSupport<Virtustream> {
     static private final Logger logger = Logger.getLogger(Templates.class);
     static private final String CAPTURE_IMAGE   =   "Image.captureImage";
     static private final String DISCONNECT_NIC  =   "Image.disconnectNic";
@@ -60,18 +57,15 @@ public class Templates extends AbstractImageSupport{
     static private final String REMOVE_TEMPLATE =   "Image.removeTemplate";
     static private final String SEARCH_PUBLIC_IMAGES = "Image.searchPublicImages";
 
-    private Virtustream provider = null;
-
     public Templates(@Nonnull Virtustream provider) {
         super(provider);
-        this.provider = provider;
     }
 
     private transient volatile TemplateCapabilities capabilities;
     @Override
     public ImageCapabilities getCapabilities() throws CloudException, InternalException {
         if( capabilities == null ) {
-            capabilities = new TemplateCapabilities(provider);
+            capabilities = new TemplateCapabilities(getProvider());
         }
         return capabilities;
     }
@@ -79,9 +73,9 @@ public class Templates extends AbstractImageSupport{
     @Nullable
     @Override
     public MachineImage getImage(@Nonnull String providerImageId) throws CloudException, InternalException {
-        APITrace.begin(provider, GET_IMAGE);
+        APITrace.begin(getProvider(), GET_IMAGE);
         try {
-            VirtustreamMethod method = new VirtustreamMethod(provider);
+            VirtustreamMethod method = new VirtustreamMethod(getProvider());
             String obj = method.getString("VirtualMachine/"+providerImageId+"?$filter=IsRemoved eq false", GET_IMAGE);
             if (obj != null && obj.length()> 0 ) {
                 try {
@@ -107,7 +101,7 @@ public class Templates extends AbstractImageSupport{
 
     @Override
     protected MachineImage capture(@Nonnull ImageCreateOptions options, @Nullable AsynchronousTask<MachineImage> task) throws CloudException, InternalException {
-        APITrace.begin(provider, CAPTURE_IMAGE);
+        APITrace.begin(getProvider(), CAPTURE_IMAGE);
         try {
             // create a copy of the vm first and then mark the copy as a template
             String vmid = options.getVirtualMachineId();
@@ -115,11 +109,11 @@ public class Templates extends AbstractImageSupport{
             String description = options.getDescription();
             boolean powerOn = false;
 
-            VirtualMachines support = provider.getComputeServices().getVirtualMachineSupport();
+            VirtualMachines support = getProvider().getComputeServices().getVirtualMachineSupport();
             VirtualMachine currentVM = support.getVirtualMachine(vmid);
             VirtualMachine newVM = support.clone(vmid, currentVM.getProviderDataCenterId(), templateName, description, powerOn, currentVM.getProviderFirewallIds());
 
-            VirtustreamMethod method = new VirtustreamMethod(provider);
+            VirtustreamMethod method = new VirtustreamMethod(getProvider());
 
             String obj = method.postString("/VirtualMachine/MarkAsTemplate", newVM.getProviderVirtualMachineId(), CAPTURE_IMAGE);
 
@@ -127,7 +121,7 @@ public class Templates extends AbstractImageSupport{
             if (obj != null && obj.length() > 0) {
                 try {
                     JSONObject json = new JSONObject(obj);
-                    templateId = provider.parseTaskID(json);
+                    templateId = getProvider().parseTaskId(json);
                 }
                 catch (JSONException e) {
                     logger.error(e);
@@ -182,11 +176,11 @@ public class Templates extends AbstractImageSupport{
 
     @Override
     public boolean isSubscribed() throws CloudException, InternalException {
-        APITrace.begin(provider, IS_SUBSCRIBED);
+        APITrace.begin(getProvider(), IS_SUBSCRIBED);
         try {
             try {
-                VirtustreamMethod method = new VirtustreamMethod(provider);
-                ArrayList<MachineImage> list = new ArrayList<MachineImage>();
+                VirtustreamMethod method = new VirtustreamMethod(getProvider());
+                List<MachineImage> list = new ArrayList<MachineImage>();
                 method.getString("VirtualMachine?$filter=IsTemplate eq true and IsRemoved eq false", LIST_IMAGES);
                 return true;
             }
@@ -202,13 +196,13 @@ public class Templates extends AbstractImageSupport{
     @Nonnull
     @Override
     public Iterable<ResourceStatus> listImageStatus(@Nonnull ImageClass cls) throws CloudException, InternalException {
-        APITrace.begin(provider, LIST_IMAGE_STATUS);
+        APITrace.begin(getProvider(), LIST_IMAGE_STATUS);
         try {
             if( !cls.equals(ImageClass.MACHINE) ) {
                 return Collections.emptyList();
             }
-            VirtustreamMethod method = new VirtustreamMethod(provider);
-            ArrayList<ResourceStatus> list = new ArrayList<ResourceStatus>();
+            VirtustreamMethod method = new VirtustreamMethod(getProvider());
+            List<ResourceStatus> list = new ArrayList<ResourceStatus>();
             String obj = method.getString("VirtualMachine?$filter=IsTemplate eq true and IsRemoved eq false and TenantID eq '"+getContext().getAccountNumber()+"'", LIST_IMAGES);
             if (obj != null && obj.length() > 0) {
                 JSONArray json = null;
@@ -269,10 +263,10 @@ public class Templates extends AbstractImageSupport{
     @Nonnull
     @Override
     public Iterable<MachineImage> listImages(@Nullable ImageFilterOptions options) throws CloudException, InternalException {
-        APITrace.begin(provider, GET_IMAGE);
+        APITrace.begin(getProvider(), GET_IMAGE);
         try {
-            VirtustreamMethod method = new VirtustreamMethod(provider);
-            ArrayList<MachineImage> list = new ArrayList<MachineImage>();
+            VirtustreamMethod method = new VirtustreamMethod(getProvider());
+            List<MachineImage> list = new ArrayList<MachineImage>();
             String obj = method.getString("VirtualMachine?$filter=IsTemplate eq true and IsRemoved eq false and TenantID eq '"+getContext().getAccountNumber()+"'", LIST_IMAGES);
             if (obj != null && obj.length() > 0) {
                 JSONArray json = null;
@@ -302,10 +296,10 @@ public class Templates extends AbstractImageSupport{
     @Nonnull
     @Override
     public Iterable<MachineImage> searchPublicImages(@Nonnull ImageFilterOptions options) throws CloudException, InternalException {
-        APITrace.begin(provider, SEARCH_PUBLIC_IMAGES);
+        APITrace.begin(getProvider(), SEARCH_PUBLIC_IMAGES);
         try {
-            VirtustreamMethod method = new VirtustreamMethod(provider);
-            ArrayList<MachineImage> list = new ArrayList<MachineImage>();
+            VirtustreamMethod method = new VirtustreamMethod(getProvider());
+            List<MachineImage> list = new ArrayList<MachineImage>();
 
             JSONArray json;
             String obj = method.getString("VirtualMachine?$filter=IsGlobalTemplate eq true and IsRemoved eq false", SEARCH_PUBLIC_IMAGES);
@@ -338,15 +332,15 @@ public class Templates extends AbstractImageSupport{
 
     @Override
     public void remove(@Nonnull String providerImageId, boolean checkState) throws CloudException, InternalException {
-        APITrace.begin(provider, REMOVE_TEMPLATE);
+        APITrace.begin(getProvider(), REMOVE_TEMPLATE);
         try {
-            VirtustreamMethod method = new VirtustreamMethod(provider);
+            VirtustreamMethod method = new VirtustreamMethod(getProvider());
             String obj = method.postString("VirtualMachine/RemoveTemplate", providerImageId, REMOVE_TEMPLATE);
             if (obj != null && obj.length() > 0) {
                 JSONObject json;
                 try {
                     json = new JSONObject(obj);
-                    if (provider.parseTaskID(json) == null) {
+                    if (getProvider().parseTaskId(json) == null) {
                         logger.warn("No confirmation of RemoveTemplate task completion but no error either");
                     }
                 }

@@ -146,7 +146,7 @@ public class VirtualMachines extends AbstractVMSupport {
                 if (obj != null && obj.length() > 0) {
                     try {
                         json = new JSONObject(obj);
-                        if (provider.parseTaskID(json) == null) {
+                        if (provider.parseTaskId(json) == null) {
                             logger.warn("No confirmation of ReconfigureVM task completion but no error either");
                         }
                     }
@@ -199,7 +199,7 @@ public class VirtualMachines extends AbstractVMSupport {
                             if (obj != null && obj.length() > 0) {
                                 try {
                                     JSONObject response = new JSONObject(obj);
-                                    if (provider.parseTaskID(response) == null) {
+                                    if (provider.parseTaskId(response) == null) {
                                         logger.warn("No confirmation of AddDisk task completion but no error either");
                                     }
                                 }
@@ -226,7 +226,7 @@ public class VirtualMachines extends AbstractVMSupport {
                             if (obj != null && obj.length() > 0) {
                                 try {
                                     JSONObject response = new JSONObject(obj);
-                                    if (provider.parseTaskID(response) == null) {
+                                    if (provider.parseTaskId(response) == null) {
                                         logger.warn("No confirmation of ReconfigureDisk task completion but no error either");
                                     }
                                 }
@@ -275,7 +275,7 @@ public class VirtualMachines extends AbstractVMSupport {
             if (obj != null && obj.length() > 0) {
                 try {
                     JSONObject node = new JSONObject(obj);
-                    newVMId = provider.parseTaskID(node);
+                    newVMId = provider.parseTaskId(node);
                 }
                 catch (JSONException e) {
                     logger.error(e);
@@ -445,7 +445,7 @@ public class VirtualMachines extends AbstractVMSupport {
                     ramAllocated = 2048;
                 }
                 // get suitable resource pool according to selected network
-                ArrayList<String> networkComputeResourceIds = getComputeResourceOfNetwork(networkId);
+                List<String> networkComputeResourceIds = getComputeResourceOfNetwork(networkId);
                 String resourcePoolId = null;
                 for (int i = 0; i<networkComputeResourceIds.size(); i++) {
                     resourcePoolId = findAvailableResourcePool(dc, networkComputeResourceIds.get(i));
@@ -551,7 +551,7 @@ public class VirtualMachines extends AbstractVMSupport {
                 String obj = method.postString("/VirtualMachine/SetVM", body, LAUNCH_VM);
                 if (obj != null && obj.length() > 0) {
                     JSONObject json = new JSONObject(obj);
-                    String vmId = provider.parseTaskID(json);
+                    String vmId = provider.parseTaskId(json);
                     if (vmId != null) {
                         // poll for up to 30 minutes - VS can sometimes suffer from race condition problems
                         VirtualMachine vm = null;
@@ -610,37 +610,6 @@ public class VirtualMachines extends AbstractVMSupport {
     }
 
     @Override
-    public @Nonnull Iterable<VirtualMachineProduct> listProducts(@Nonnull Architecture architecture) throws InternalException, CloudException {
-        return listProducts(null, architecture);
-    }
-
-    @Override
-    public Iterable<VirtualMachineProduct> listProducts( VirtualMachineProductFilterOptions options ) throws InternalException, CloudException {
-        List<VirtualMachineProduct> products = new ArrayList<VirtualMachineProduct>();
-        for( Architecture arch : Architecture.values() ) {
-            mergeProductLists(products, listProducts(options, arch));
-        }
-        return products;
-    }
-
-    // Merges product iterable to the list, using providerProductId as a unique key
-    private void mergeProductLists(List<VirtualMachineProduct> to, Iterable<VirtualMachineProduct> from) {
-        List<VirtualMachineProduct> copy = new ArrayList<VirtualMachineProduct>(to);
-        for( VirtualMachineProduct productFrom : from ) {
-            boolean found = false;
-            for( VirtualMachineProduct productTo : copy ) {
-                if( productTo.getProviderProductId().equalsIgnoreCase(productFrom.getProviderProductId()) ) {
-                    found = true;
-                    break;
-                }
-            }
-            if( !found ) {
-                to.add(productFrom);
-            }
-        }
-    }
-
-    @Override
     public Iterable<VirtualMachineProduct> listProducts(VirtualMachineProductFilterOptions options, Architecture architecture) throws InternalException, CloudException {
         String cacheName = "productsALL";
         if( architecture != null ) {
@@ -650,7 +619,7 @@ public class VirtualMachines extends AbstractVMSupport {
         Iterable<VirtualMachineProduct> products = cache.get(getContext());
 
         if (products == null) {
-            ArrayList<VirtualMachineProduct> list = new ArrayList<VirtualMachineProduct>();
+            List<VirtualMachineProduct> list = new ArrayList<VirtualMachineProduct>();
 
             for (int ram : new int[]{1024, 2048, 4096, 8192, 12288, 16384, 20480, 24576, 28668, 32768}) {
                 for (int cpuCount : new int[]{1, 2, 3, 4, 5, 6, 7, 8}) {
@@ -677,7 +646,7 @@ public class VirtualMachines extends AbstractVMSupport {
         APITrace.begin(provider, LIST_VIRTUAL_MACHINE_STATUS);
         try {
             try {
-                ArrayList<ResourceStatus> list = new ArrayList<ResourceStatus>();
+                List<ResourceStatus> list = new ArrayList<ResourceStatus>();
                 VirtustreamMethod method = new VirtustreamMethod(provider);
                 String obj = method.getString("/VirtualMachine?$filter=IsTemplate eq false and IsRemoved eq false", LIST_VIRTUAL_MACHINE_STATUS);
 
@@ -717,7 +686,7 @@ public class VirtualMachines extends AbstractVMSupport {
         try {
             try {
                 VirtustreamMethod method = new VirtustreamMethod(provider);
-                ArrayList<VirtualMachine> list = new ArrayList<VirtualMachine>();
+                List<VirtualMachine> list = new ArrayList<VirtualMachine>();
                 String obj = method.getString("/VirtualMachine?$filter=IsTemplate eq false and IsRemoved eq false", LIST_VIRTUAL_MACHINES);
 
                 if (obj != null && obj.length() > 0) {
@@ -751,7 +720,7 @@ public class VirtualMachines extends AbstractVMSupport {
                 String obj = method.postString("/VirtualMachine/"+vmId+"/RebootOS", "", REBOOT_VIRTUAL_MACHINE);
                 if (obj != null && obj.length()> 0) {
                     JSONObject json = new JSONObject(obj);
-                    if (provider.parseTaskID(json) == null) {
+                    if (provider.parseTaskId(json) == null) {
                         logger.warn("No confirmation of RebootVM task completion but no error either");
                     }
                 }
@@ -775,7 +744,7 @@ public class VirtualMachines extends AbstractVMSupport {
                 String obj = method.postString("/VirtualMachine/"+vmId+"/PowerOn", "", RESUME_VIRTUAL_MACHINE);
                 if (obj != null && obj.length()> 0) {
                     JSONObject json = new JSONObject(obj);
-                    if (provider.parseTaskID(json) == null) {
+                    if (provider.parseTaskId(json) == null) {
                         logger.warn("No confirmation of ResumeVM task completion but no error either");
                     }
                 }
@@ -799,7 +768,7 @@ public class VirtualMachines extends AbstractVMSupport {
                 String obj = method.postString("/VirtualMachine/"+vmId+"/PowerOn", "", START_VIRTUAL_MACHINE);
                 if (obj != null && obj.length()> 0) {
                     JSONObject json = new JSONObject(obj);
-                    if (provider.parseTaskID(json) == null) {
+                    if (provider.parseTaskId(json) == null) {
                         logger.warn("No confirmation of StartVM task completion but no error either");
                     }
                 }
@@ -824,7 +793,7 @@ public class VirtualMachines extends AbstractVMSupport {
                     String obj = method.postString("/VirtualMachine/"+vmId+"/PowerOff", "", STOP_VIRTUAL_MACHINE);
                     if (obj != null && obj.length()> 0) {
                         JSONObject json = new JSONObject(obj);
-                        if (provider.parseTaskID(json) == null) {
+                        if (provider.parseTaskId(json) == null) {
                             logger.warn("No confirmation of StopVM task completion but no error either");
                         }
                     }
@@ -834,7 +803,7 @@ public class VirtualMachines extends AbstractVMSupport {
                     if (obj != null && obj.length() > 0) {
                         JSONObject json = new JSONObject(obj);
                         try {
-                            if (provider.parseTaskID(json) == null) {
+                            if (provider.parseTaskId(json) == null) {
                                 logger.warn("No confirmation of ShutdownOS task completion but no error either");
                             }
                         }
@@ -864,7 +833,7 @@ public class VirtualMachines extends AbstractVMSupport {
                 String obj = method.postString("/VirtualMachine/"+vmId+"/Suspend", "", SUSPEND_VIRTUAL_MACHINE);
                 if (obj != null && obj.length()> 0) {
                     JSONObject json = new JSONObject(obj);
-                    if (provider.parseTaskID(json) == null) {
+                    if (provider.parseTaskId(json) == null) {
                         logger.warn("No confirmation of SuspendVM task completion but no error either");
                     }
                 }
@@ -910,7 +879,7 @@ public class VirtualMachines extends AbstractVMSupport {
                 if (obj != null && obj.length() > 0) {
                     try {
                         JSONObject json = new JSONObject(obj);
-                        if (provider.parseTaskID(json) == null) {
+                        if (provider.parseTaskId(json) == null) {
                             logger.warn("No confirmation of TerminateVM task completion but no error either");
                         }
                     }
@@ -1280,13 +1249,13 @@ public class VirtualMachines extends AbstractVMSupport {
         return false;
     }
 
-    private ArrayList<String> getComputeResourceOfNetwork(@Nonnull String networkId) throws CloudException, InternalException {
+    private List<String> getComputeResourceOfNetwork(@Nonnull String networkId) throws CloudException, InternalException {
         APITrace.begin(provider, "getNetworkComputeResourceID");
         try {
             Networks services = provider.getNetworkServices().getVlanSupport();
             VLAN vlan = services.getVlan(networkId);
             int length = Integer.parseInt(vlan.getTag("numComputeIds"));
-            ArrayList<String> list = new ArrayList<String>();
+            List<String> list = new ArrayList<String>();
             for (int i = 0; i<length; i++) {
                String tag = "computeResourceID"+i;
                list.add(vlan.getTag(tag));
