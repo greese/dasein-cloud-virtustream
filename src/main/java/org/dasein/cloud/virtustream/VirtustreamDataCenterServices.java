@@ -302,4 +302,19 @@ public class VirtustreamDataCenterServices implements DataCenterServices {
     public Collection<StoragePool> listStoragePools() throws InternalException, CloudException {
         return Collections.emptyList();
     }
+
+    @Override
+    public @Nonnull StoragePool getStoragePool( String providerStoragePoolId ) throws InternalException, CloudException {
+        throw new CloudException(provider.getCloudName() + " does not support storage pools.");
+    }
+
+    @Override
+    public @Nonnull Collection<Folder> listVMFolders() throws InternalException, CloudException {
+        throw new CloudException(provider.getCloudName() + " does not support VM folders.");
+    }
+
+    @Override
+    public @Nonnull Folder getVMFolder( String providerVMFolderId ) throws InternalException, CloudException {
+        throw new CloudException(provider.getCloudName() + " does not support VM folders.");
+    }
 }

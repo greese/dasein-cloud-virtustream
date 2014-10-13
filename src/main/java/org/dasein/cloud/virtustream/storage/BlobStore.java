@@ -22,7 +22,6 @@ package org.dasein.cloud.virtustream.storage;
 import org.apache.log4j.Logger;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
-import org.dasein.cloud.ProviderContext;
 import org.dasein.cloud.OperationNotSupportedException;
 import org.dasein.cloud.identity.ServiceAction;
 import org.dasein.cloud.storage.AbstractBlobStoreSupport;
@@ -32,7 +31,6 @@ import org.dasein.cloud.util.APITrace;
 import org.dasein.cloud.util.NamingConstraints;
 import org.dasein.cloud.virtustream.Virtustream;
 import org.dasein.cloud.virtustream.VirtustreamMethod;
-import org.dasein.cloud.virtustream.VirtustreamStorageMethod;
 import org.dasein.util.uom.storage.Storage;
 import org.dasein.util.uom.storage.Byte;
 import org.json.JSONArray;
@@ -51,7 +49,6 @@ import java.io.InputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-import java.io.UnsupportedEncodingException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -59,7 +56,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Locale;
 
-public class BlobStore extends AbstractBlobStoreSupport{
+public class BlobStore extends AbstractBlobStoreSupport<Virtustream> {
     static private final Logger logger = Logger.getLogger(BlobStore.class);
 
     static private final String CANCEL_DOWNLOAD                 =   "Blob.cancelDownload";
@@ -77,9 +74,7 @@ public class BlobStore extends AbstractBlobStoreSupport{
     static private final String RENAME_BUCKET                   =   "Blob.renameBucket";
     static private final String UPLOAD_FILE                     =   "Blob.uploadFile";
 
-    private Virtustream provider;
-
-    public BlobStore(Virtustream provider) { this.provider = provider; }
+    public BlobStore(Virtustream provider) { super(provider); }
 
 
     @Override
@@ -100,18 +95,18 @@ public class BlobStore extends AbstractBlobStoreSupport{
     @Nonnull
     @Override
     public Blob createBucket(@Nonnull String bucket, boolean findFreeName) throws InternalException, CloudException {
-        throw new OperationNotSupportedException("Bucket creation is not currently supported for " + provider.getCloudName());
+        throw new OperationNotSupportedException("Bucket creation is not currently supported for " + getProvider().getCloudName());
     }
 
     @Override
     public boolean exists(@Nonnull String bucket) throws InternalException, CloudException {
-        APITrace.begin(provider, CHECK_EXISTS);
+        APITrace.begin(getProvider(), CHECK_EXISTS);
         try {
             try {
                 if (bucket.endsWith("/")) {
                     return false;
                 }
-                VirtustreamMethod method = new VirtustreamMethod(provider);
+                VirtustreamMethod method = new VirtustreamMethod(getProvider());
                 int position = bucket.indexOf("/");
                 String tmp;
                 String path;
@@ -141,13 +136,13 @@ public class BlobStore extends AbstractBlobStoreSupport{
                 }
 
                 JSONObject body = new JSONObject();
-                body.put("StorageID", storageID);
+                body.put("StorageID", storageId);
                 body.put("Path", path);
                 body.put("Pattern", pattern);
                 String obj = method.postString("/Storage/StorageSearchFile", body.toString(),LIST_STORAGE);
                 if (obj != null && obj.length()> 0) {
                     JSONObject json = new JSONObject(obj);
-                    String response = provider.parseTaskID(json);
+                    String response = getProvider().parseTaskId(json);
                     if (response != null && response.length() > 2) {
                         return true;
                     }
@@ -166,10 +161,10 @@ public class BlobStore extends AbstractBlobStoreSupport{
 
     @Override
     public Blob getBucket(@Nonnull String bucketName) throws InternalException, CloudException {
-        APITrace.begin(provider, GET_BUCKETS);
+        APITrace.begin(getProvider(), GET_BUCKETS);
         try {
             try {
-                VirtustreamMethod method = new VirtustreamMethod(provider);
+                VirtustreamMethod method = new VirtustreamMethod(getProvider());
                 int position = bucketName.indexOf("/");
                 String tmp;
                 String path;
@@ -206,19 +201,19 @@ public class BlobStore extends AbstractBlobStoreSupport{
                 }
 
                 JSONObject body = new JSONObject();
-                body.put("StorageID", storageID);
+                body.put("StorageID", storageId);
                 body.put("Path", path);
                 body.put("Pattern", pattern);
                 String obj = method.postString("/Storage/StorageSearchFile", body.toString(),LIST_STORAGE);
                 if (obj != null && obj.length()> 0) {
                     JSONObject json = new JSONObject(obj);
-                    String response = provider.parseTaskID(json);
+                    String response = getProvider().parseTaskId(json);
                     if (response != null && response.length()> 0) {
                         JSONArray objects = new JSONArray(response);
                         for (int i=0; i<objects.length(); i++) {
                             JSONObject result = objects.getJSONObject(i);
                             boolean isContainer = result.getBoolean("IsDirectory");
-                            Blob object = toBlob(result,bucketName,isContainer, storageRegionID);
+                            Blob object = toBlob(result,bucketName,isContainer, storageRegionId);
                             if (object != null) {
                                 return object;
                             }
@@ -239,13 +234,13 @@ public class BlobStore extends AbstractBlobStoreSupport{
 
     @Override
     public Blob getObject(@Nullable String bucketName, @Nonnull String objectName) throws InternalException, CloudException {
-        APITrace.begin(provider, GET_OBJECT);
+        APITrace.begin(getProvider(), GET_OBJECT);
         try {
             if (bucketName == null || objectName == null) {
                 return null;
             }
             try {
-                VirtustreamMethod method = new VirtustreamMethod(provider);
+                VirtustreamMethod method = new VirtustreamMethod(getProvider());
                 int position = bucketName.indexOf("/");
                 String tmp;
                 String path;
@@ -265,20 +260,20 @@ public class BlobStore extends AbstractBlobStoreSupport{
                 findStorageObjectForName(tmp);
 
                 JSONObject body = new JSONObject();
-                body.put("StorageID", storageID);
+                body.put("StorageID", storageId);
                 body.put("Path", path);
                 body.put("Pattern", pattern);
                 String obj = method.postString("/Storage/StorageSearchFile", body.toString(),LIST_STORAGE);
                 if (obj != null && obj.length()> 0) {
                     JSONObject json = new JSONObject(obj);
-                    String response = provider.parseTaskID(json);
+                    String response = getProvider().parseTaskId(json);
 
                     if (response != null && response.length()> 0) {
                         JSONArray objects = new JSONArray(response);
                         for (int i=0; i<objects.length(); i++) {
                             JSONObject result = objects.getJSONObject(i);
                             boolean isContainer = result.getBoolean("IsDirectory");
-                            Blob object = toBlob(result,bucketName,isContainer, storageRegionID);
+                            Blob object = toBlob(result,bucketName,isContainer, storageRegionId);
                             if (object != null && object.getObjectName().equalsIgnoreCase(objectName)) {
                                 return object;
                             }
@@ -306,7 +301,7 @@ public class BlobStore extends AbstractBlobStoreSupport{
     @Nullable
     @Override
     public Storage<Byte> getObjectSize(@Nullable String bucketName, @Nullable String objectName) throws InternalException, CloudException {
-        APITrace.begin(provider, GET_OBJECT_SIZE);
+        APITrace.begin(getProvider(), GET_OBJECT_SIZE);
         try {
             Blob blob = getObject(bucketName, objectName);
             if (blob != null) {
@@ -365,9 +360,9 @@ public class BlobStore extends AbstractBlobStoreSupport{
 
     @Override
     public boolean isSubscribed() throws CloudException, InternalException {
-        APITrace.begin(provider, IS_SUBSCRIBED);
+        APITrace.begin(getProvider(), IS_SUBSCRIBED);
         try {
-            VirtustreamMethod method = new VirtustreamMethod(provider);
+            VirtustreamMethod method = new VirtustreamMethod(getProvider());
             method.getString("/Storage?$filter=IsRemoved eq false", LIST_STORAGE);
             return true;
         }
@@ -382,11 +377,11 @@ public class BlobStore extends AbstractBlobStoreSupport{
     @Nonnull
     @Override
     public Iterable<Blob> list(@Nullable String bucket) throws CloudException, InternalException {
-        APITrace.begin(provider, LIST_STORAGE);
+        APITrace.begin(getProvider(), LIST_STORAGE);
         try {
             try {
                 ArrayList<Blob> list = new ArrayList<Blob>();
-                VirtustreamMethod method = new VirtustreamMethod(provider);
+                VirtustreamMethod method = new VirtustreamMethod(getProvider());
                 if (bucket == null) {
                     String obj = method.getString("/Storage?$filter=IsRemoved eq false", LIST_STORAGE);
                     if (obj != null && obj.length() > 0) {
@@ -416,19 +411,19 @@ public class BlobStore extends AbstractBlobStoreSupport{
                     findStorageObjectForName(tmp);
 
                     JSONObject body = new JSONObject();
-                    body.put("StorageID", storageID);
+                    body.put("StorageID", storageId);
                     body.put("Path", path);
                     body.put("Pattern", "*");
                     String obj = method.postString("/Storage/StorageSearchFile", body.toString(),LIST_STORAGE);
                     if (obj != null && obj.length()> 0) {
                         JSONObject json = new JSONObject(obj);
-                        String response = provider.parseTaskID(json);
+                        String response = getProvider().parseTaskId(json);
                         if (response != null && response.length()> 0) {
                             JSONArray objects = new JSONArray(response);
                             for (int i=0; i<objects.length(); i++) {
                                 JSONObject result = objects.getJSONObject(i);
                                 boolean isContainer = result.getBoolean("IsDirectory");
-                                Blob object = toBlob(result,bucket,isContainer, storageRegionID);
+                                Blob object = toBlob(result,bucket,isContainer, storageRegionId);
                                 if (object != null) {
                                     list.add(object);
                                 }
@@ -470,10 +465,10 @@ public class BlobStore extends AbstractBlobStoreSupport{
 
     @Override
     public void removeObject(@Nullable String bucket, @Nonnull String object) throws CloudException, InternalException {
-        APITrace.begin(provider, REMOVE_OBJECT);
+        APITrace.begin(getProvider(), REMOVE_OBJECT);
         try {
             try {
-                VirtustreamMethod method = new VirtustreamMethod(provider);
+                VirtustreamMethod method = new VirtustreamMethod(getProvider());
                 String storageName = bucket;
                 String path = "/";
                 if (bucket.indexOf("/") >=0) {
@@ -483,13 +478,13 @@ public class BlobStore extends AbstractBlobStoreSupport{
                 findStorageObjectForName(storageName);
 
                 JSONObject json = new JSONObject();
-                json.put("StorageID", storageID);
+                json.put("StorageID", storageId);
                 json.put("FilePath", path+"/"+object);
 
                 String obj = method.postString("/Storage/DeleteFile", json.toString(), REMOVE_OBJECT);
                 if (obj != null && obj.length() > 0) {
                     JSONObject response = new JSONObject(obj);
-                    if (provider.parseTaskID(response) == null) {
+                    if (getProvider().parseTaskId(response) == null) {
                         logger.warn("No confirmation of RemoveObject task completion but no error either");
                     }
                 }
@@ -507,10 +502,10 @@ public class BlobStore extends AbstractBlobStoreSupport{
     @Nonnull
     @Override
     public String renameBucket(@Nonnull String oldName, @Nonnull String newName, boolean findFreeName) throws CloudException, InternalException {
-        APITrace.begin(provider, RENAME_BUCKET);
+        APITrace.begin(getProvider(), RENAME_BUCKET);
         try {
             try {
-                VirtustreamMethod method = new VirtustreamMethod(provider);
+                VirtustreamMethod method = new VirtustreamMethod(getProvider());
                 if (oldName.indexOf("/") >=0) {
                     // can only rename the top level storage not lower folders
                     throw new OperationNotSupportedException("Virtustream does not support rename of folders");
@@ -518,13 +513,13 @@ public class BlobStore extends AbstractBlobStoreSupport{
                 findStorageObjectForName(oldName);
 
                 JSONObject json = new JSONObject();
-                json.put("StorageID", storageID);
+                json.put("StorageID", storageId);
                 json.put("CustomerDefinedName", newName);
 
                 String obj = method.postString("/Storage/RenameStorage", json.toString(), RENAME_BUCKET);
                 if (obj != null && obj.length() > 0) {
                     JSONObject response = new JSONObject(obj);
-                    if (provider.parseTaskID(response) == null) {
+                    if (getProvider().parseTaskId(response) == null) {
                         logger.warn("No confirmation of RenameBucket task completion but no error either");
                     }
                 }
@@ -549,7 +544,7 @@ public class BlobStore extends AbstractBlobStoreSupport{
     @Nonnull
     @Override
     public Blob upload(@Nonnull File sourceFile, @Nullable String bucket, @Nonnull String objectName) throws CloudException, InternalException {
-        APITrace.begin(provider, UPLOAD_FILE);
+        APITrace.begin(getProvider(), UPLOAD_FILE);
         try {
             if( bucket == null ) {
                 logger.error("No bucket was specified for this request");
@@ -570,7 +565,7 @@ public class BlobStore extends AbstractBlobStoreSupport{
 
     @Override
     protected void get(@Nullable String bucket, @Nonnull String object, @Nonnull File toFile, @Nullable FileTransfer transfer) throws InternalException, CloudException {
-        APITrace.begin(provider, DOWNLOAD_FILE);
+        APITrace.begin(getProvider(), DOWNLOAD_FILE);
         try {
             if( bucket == null ) {
                 logger.error("No bucket was specified");
@@ -583,7 +578,7 @@ public class BlobStore extends AbstractBlobStoreSupport{
             String fileTransferID = null;
             long fileSize = 0;
             try {
-                VirtustreamMethod method = new VirtustreamMethod(provider);
+                VirtustreamMethod method = new VirtustreamMethod(getProvider());
                 int position = bucket.indexOf("/");
                 String tmp;
                 String path;
@@ -604,7 +599,7 @@ public class BlobStore extends AbstractBlobStoreSupport{
 
                 json = new JSONObject();
                 json.put("Command", "BeginDownload");
-                json.put("StorageID", storageID);
+                json.put("StorageID", storageId);
                 json.put("FilePath", path);
 
                 String obj = method.postString("/fileService", json.toString(), DOWNLOAD_FILE);
@@ -613,7 +608,7 @@ public class BlobStore extends AbstractBlobStoreSupport{
                     JSONObject ft = response.getJSONObject("FileTransfer");
                     fileTransferID = ft.getString("FileTransferID");
                     fileSize=ft.getLong("FileSizeBytes");
-                    if (provider.parseStorageTaskID(response) == null) {
+                    if (getProvider().parseStorageTaskId(response) == null) {
                         logger.error("No confirmation of DownloadFile task completion but no error either");
                     }
                 }
@@ -673,7 +668,7 @@ public class BlobStore extends AbstractBlobStoreSupport{
 
         try{
             try {
-                VirtustreamMethod method = new VirtustreamMethod(provider);
+                VirtustreamMethod method = new VirtustreamMethod(getProvider());
                 response = method.getFileDownload("/fileService/"+fileTransferID+"?Position="+basicId+"&ChunkSize="+blockSize, DOWNLOAD_FILE);
                 while ((read = response.read(bytes)) != -1) {
                     basicId = basicId+read;
@@ -729,7 +724,7 @@ public class BlobStore extends AbstractBlobStoreSupport{
         JSONObject json = null;
 
         try {
-            VirtustreamMethod method = new VirtustreamMethod(provider);
+            VirtustreamMethod method = new VirtustreamMethod(getProvider());
             int position = bucket.indexOf("/");
             String tmp;
             String path;
@@ -750,7 +745,7 @@ public class BlobStore extends AbstractBlobStoreSupport{
 
             json = new JSONObject();
             json.put("Command", "BeginUpload");
-            json.put("StorageID", storageID);
+            json.put("StorageID", storageId);
             json.put("FilePath", path+"/"+objectName);
             json.put("FileSizeBytes", file.length());
 
@@ -767,7 +762,7 @@ public class BlobStore extends AbstractBlobStoreSupport{
                 String response = method.postString("/fileService/"+fileTransferID+"/CompleteUpload", "", UPLOAD_FILE);
                 if (response != null && response.length() > 0) {
                     JSONObject node = new JSONObject(response);
-                    if (provider.parseStorageTaskID(node) == null) {
+                    if (getProvider().parseStorageTaskId(node) == null) {
                         logger.warn("No confirmation of CompleteUpload task completion but no error either");
                     }
                 }
@@ -785,7 +780,7 @@ public class BlobStore extends AbstractBlobStoreSupport{
 
     @Override
     protected void put(@Nullable String bucketName, @Nonnull String objectName, @Nonnull String content) throws InternalException, CloudException {
-        APITrace.begin(provider, "Blob.put");
+        APITrace.begin(getProvider(), "Blob.put");
         try {
             try {
                 File tmp = File.createTempFile(objectName, ".txt");
@@ -841,7 +836,7 @@ public class BlobStore extends AbstractBlobStoreSupport{
         catch (Exception ex) {
             logger.error(ex);
             //cancel upload
-            VirtustreamMethod method = new VirtustreamMethod(provider);
+            VirtustreamMethod method = new VirtustreamMethod(getProvider());
             method.postString("/fileService/"+fileTransferID+"/CancelUpload", "", CANCEL_UPLOAD);
             throw new CloudException(ex);
         }
@@ -853,7 +848,7 @@ public class BlobStore extends AbstractBlobStoreSupport{
 
     private void putBlocks(@Nonnull byte[] content, @Nonnull int blockId, @Nonnull String fileTransferID) throws  InternalException, CloudException {
         try {
-            VirtustreamMethod method = new VirtustreamMethod(provider);
+            VirtustreamMethod method = new VirtustreamMethod(getProvider());
             JSONObject json = new JSONObject();
             json.put("Sequence", blockId);
             json.put("Data", content);
@@ -915,17 +910,18 @@ public class BlobStore extends AbstractBlobStoreSupport{
         }
     }
 
-    transient String storageRegionID;
-    transient String storageID;
-    private void findStorageObjectForName(@Nonnull String storageName) throws InternalException, CloudException {
-        APITrace.begin(provider, FIND_STORAGE_ID);
+    transient String storageRegionId;
+    transient String storageId;
+
+    private void findStorageObjectForName( @Nonnull String storageName ) throws InternalException, CloudException {
+        APITrace.begin(getProvider(), FIND_STORAGE_ID);
         try {
             try {
-                VirtustreamMethod method = new VirtustreamMethod(provider);
+                VirtustreamMethod method = new VirtustreamMethod(getProvider());
                 String obj = method.getString("/Storage?$filter=IsRemoved eq false", FIND_STORAGE_ID);
-                if (obj != null && obj.length() > 0) {
+                if( obj != null && obj.length() > 0 ) {
                     JSONArray json = new JSONArray(obj);
-                    for (int i=0; i<json.length(); i++) {
+                    for( int i = 0; i < json.length(); i++ ) {
                         JSONObject node = json.getJSONObject(i);
 
                         String name = node.getString("Name");
@@ -933,21 +929,21 @@ public class BlobStore extends AbstractBlobStoreSupport{
                         JSONObject hv = node.getJSONObject("Hypervisor");
                         JSONObject site = hv.getJSONObject("Site");
                         JSONObject r = site.getJSONObject("Region");
-                        storageRegionID = r.getString("RegionID");
-                        if (storageName.equalsIgnoreCase(name)) {
-                            storageID = id;
+                        storageRegionId = r.getString("RegionID");
+                        if( storageName.equalsIgnoreCase(name) ) {
+                            storageId = id;
                         }
                     }
 
                 }
-                if (storageRegionID == null || storageID == null)  {
-                    logger.error("Storage with name "+storageName+" not found");
-                    throw new InternalException("Storage with name "+storageName+" not found");
+                if( storageRegionId == null || storageId == null ) {
+                    logger.error("Storage with name " + storageName + " not found");
+                    throw new InternalException("Storage with name " + storageName + " not found");
                 }
             }
-            catch (JSONException e) {
+            catch( JSONException e ) {
                 logger.error(e);
-                throw new InternalException("Unable to parse JSONObject "+e.getMessage());
+                throw new InternalException("Unable to parse JSONObject " + e.getMessage());
             }
         }
         finally {
