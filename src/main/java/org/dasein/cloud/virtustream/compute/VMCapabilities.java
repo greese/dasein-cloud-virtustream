@@ -116,7 +116,7 @@ public class VMCapabilities extends AbstractCapabilities<Virtustream> implements
     @Nullable
     @Override
     public VMScalingCapabilities getVerticalScalingCapabilities() throws CloudException, InternalException {
-        return VMScalingCapabilities.getInstance(false, true, Requirement.NONE, Requirement.REQUIRED);
+        return VMScalingCapabilities.getInstance(false, false, true);
     }
 
     @Nonnull
@@ -200,6 +200,11 @@ public class VMCapabilities extends AbstractCapabilities<Virtustream> implements
 
     @Override
     public boolean isUserDataSupported() throws CloudException, InternalException {
+        return false;
+    }
+
+    @Override
+    public boolean isUserDefinedPrivateIPSupported() throws CloudException, InternalException {
         return false;
     }
 

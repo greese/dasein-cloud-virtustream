@@ -22,20 +22,16 @@ package org.dasein.cloud.virtustream.compute;
 import org.apache.log4j.Logger;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
+import org.dasein.cloud.OperationNotSupportedException;
 import org.dasein.cloud.ResourceStatus;
-import org.dasein.cloud.compute.AbstractVolumeSupport;
-import org.dasein.cloud.compute.Platform;
-import org.dasein.cloud.compute.Volume;
-import org.dasein.cloud.compute.VolumeCapabilities;
-import org.dasein.cloud.compute.VolumeFilterOptions;
-import org.dasein.cloud.compute.VolumeFormat;
-import org.dasein.cloud.compute.VolumeState;
-import org.dasein.cloud.compute.VolumeType;
+import org.dasein.cloud.compute.*;
+import org.dasein.cloud.dc.DataCenter;
 import org.dasein.cloud.util.APITrace;
 import org.dasein.cloud.util.Cache;
 import org.dasein.cloud.util.CacheLevel;
 import org.dasein.cloud.virtustream.Virtustream;
 import org.dasein.cloud.virtustream.VirtustreamMethod;
+import org.dasein.util.CalendarWrapper;
 import org.dasein.util.uom.storage.Gigabyte;
 import org.dasein.util.uom.storage.Kilobyte;
 import org.dasein.util.uom.storage.Storage;
@@ -45,9 +41,7 @@ import org.json.JSONObject;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Locale;
+import java.util.*;
 
 public class Volumes extends AbstractVolumeSupport {
     static private final Logger logger = Logger.getLogger(Volume.class);
@@ -72,6 +66,110 @@ public class Volumes extends AbstractVolumeSupport {
             capabilities = new VSVolumeCapabilities(provider);
         }
         return capabilities;
+    }
+
+    @Nonnull
+    @Override
+    public String createVolume(@Nonnull VolumeCreateOptions options) throws InternalException, CloudException {
+        APITrace.begin(provider, "Volumes.createVolume");
+        try {
+            if (!options.getFormat().equals(VolumeFormat.BLOCK)) {
+                throw new OperationNotSupportedException("Only block volume creation supported in "+provider.getCloudName());
+            }
+            if (options.getSnapshotId() != null) {
+                throw new OperationNotSupportedException("Creating volumes from snapshots not supported in "+provider.getCloudName());
+            }
+            if (options.getProviderVirtualMachineId() == null) {
+                throw new CloudException("Volumes can only be created in the context of vms in "+provider.getCloudName()+". VM is null");
+            }
+            VirtustreamMethod method = new VirtustreamMethod(provider);
+            String vmId = options.getProviderVirtualMachineId();
+            VirtualMachines support = provider.getComputeServices().getVirtualMachineSupport();
+            VirtualMachine vm = support.getVirtualMachine(vmId);
+            String dataCenterID = vm.getProviderDataCenterId();
+            DataCenter dc = provider.getDataCenterServices().getDataCenter(dataCenterID);
+
+            //get existing disks
+            String vmObj = method.getString("/VirtualMachine/"+vmId+"?$filter=IsRemoved eq false", "Volume.getVirtualMachine");
+            List<String> diskIds = new ArrayList<String>();
+            if (vmObj != null && vmObj.length() > 0) {
+                try {
+                    JSONObject json = new JSONObject(vmObj);
+                    JSONArray disks = json.getJSONArray("Disks");
+                    for (int j=0; j<disks.length(); j++) {
+                        JSONObject diskJson = disks.getJSONObject(j);
+
+                        diskIds.add(diskJson.getString("VirtualMachineDiskID"));
+                    }
+                }
+                catch (JSONException e) {
+                    logger.error(e);
+                    throw new InternalException("Unable to parse JSON "+e.getMessage());
+                }
+            }
+
+            Storage<Gigabyte> size = options.getVolumeSize();
+            Storage<Kilobyte> capacity = (Storage<Kilobyte>)size.convertTo(Storage.KILOBYTE);
+            long capacityKB = capacity.longValue();
+
+            //find a suitable storage location for the hard disk based on the vms resource pool id
+            storageComputeId = getComputeIDFromResourcePool(vm.getTag("ResourcePoolID").toString());
+            String storageId = findAvailableStorage(capacityKB, dc);
+            if (storageId == null) {
+                logger.error("No available storage resource in datacenter "+dc.getName());
+                throw new CloudException("No available storage resource in datacenter "+dc.getName());
+            }
+
+            //add new disk
+            JSONObject disk = new JSONObject();
+            try {
+                disk.put("StorageID", storageId);
+                disk.put("CapacityKB", capacityKB);
+                disk.put("VirtualMachineID", vmId);
+            }
+            catch (JSONException e) {
+                logger.error(e);
+                throw new InternalException("Unable to parse JSON "+e.getMessage());
+            }
+            String obj = method.postString("VirtualMachine/AddDisk", disk.toString(), "Volume.createVolume");
+            if (obj != null && obj.length() > 0) {
+                try {
+                    JSONObject response = new JSONObject(obj);
+                    provider.parseTaskId(response);
+                    vmObj = method.getString("/VirtualMachine/"+vmId+"?$filter=IsRemoved eq false", "Volume.getVirtualMachine");
+
+                    if (vmObj != null && vmObj.length() > 0) {
+                        try {
+                            JSONObject json = new JSONObject(vmObj);
+                            JSONArray disks = json.getJSONArray("Disks");
+                            for (int j=0; j<disks.length(); j++) {
+                                JSONObject diskJson = disks.getJSONObject(j);
+
+                                String diskId = diskJson.getString("VirtualMachineDiskID");
+                                if (!diskIds.contains(diskId)) {
+                                    Volume vol = getVolume(diskId);
+                                    if (vol != null) {
+                                        return diskId;
+                                    }
+                                }
+                            }
+                        }
+                        catch (JSONException e) {
+                            logger.error(e);
+                            throw new InternalException("Unable to parse JSON "+e.getMessage());
+                        }
+                    }
+                }
+                catch (JSONException e) {
+                    logger.error(e);
+                    throw new InternalException("Unable to parse JSON "+e.getMessage());
+                }
+            }
+            throw new CloudException("Can't find new volume");
+        }
+        finally {
+            APITrace.end();
+        }
     }
 
     @Nullable
@@ -381,6 +479,92 @@ public class Volumes extends AbstractVolumeSupport {
             else if( deviceNumber.equals("8") ) { return "hdi"; }
             else if( deviceNumber.equals("9") ) { return "hdj"; }
             else { return "hdj"; }
+        }
+    }
+
+    private transient String storageComputeId;
+    public String findAvailableStorage(@Nonnull long capacityKB, @Nonnull DataCenter dataCenter) throws CloudException, InternalException {
+        APITrace.begin(provider, "Volumes.findStorage");
+        try {
+            try {
+                VirtustreamMethod method = new VirtustreamMethod(provider);
+                HashMap<String, Integer> map = new HashMap<String, Integer>();
+                String obj = method.getString("/Storage?$filter=IsRemoved eq false and Hypervisor/Site/SiteID eq '"+dataCenter.getProviderDataCenterId()+"'", "Volumes.findStorage");
+                if (obj != null && obj.length() > 0) {
+                    JSONArray list = new JSONArray(obj);
+                    for (int i=0; i<list.length(); i++) {
+                        boolean found = false;
+                        JSONObject json = list.getJSONObject(i);
+                        String id = json.getString("StorageID");
+                        long freeSpaceKB = json.getLong("FreeSpaceKB");
+                        long storageCapacityKB = json.getLong("CapacityKB");
+                        int percentFree = Math.round((storageCapacityKB/freeSpaceKB)*100);
+
+                        JSONArray computeIds = json.getJSONArray("ComputeResourceIDs");
+                        for (int j = 0; j < computeIds.length(); j++) {
+                            String computeID = computeIds.getString(j);
+                            if (computeID.equals(storageComputeId)) {
+                                found = true;
+                                break;
+                            }
+                        }
+                        // as long as the storage has enough free space we can use it
+                        if (capacityKB <= freeSpaceKB && found) {
+                            map.put(id, percentFree);
+                        }
+                    }
+                }
+                if (map.isEmpty()) {
+                    logger.error("No available storage in datacenter "+dataCenter.getName()+" - require "+capacityKB+"KB");
+                    throw new CloudException("No available storage in datacenter "+dataCenter.getName()+" - require "+capacityKB+"KB");
+                }
+                if (map.size() == 1) {
+                    return map.keySet().iterator().next();
+                }
+
+                // return storage with least amount of free space
+                Map.Entry<String, Integer> maxEntry = null;
+
+                for (Map.Entry<String, Integer> entry : map.entrySet()) {
+                    if (maxEntry == null || entry.getValue().compareTo(maxEntry.getValue()) > 0) {
+                        maxEntry = entry;
+                    }
+                }
+                return maxEntry.getKey();
+            }
+            catch (JSONException e) {
+                logger.error(e);
+                throw new InternalException("Unable to parse JSONObject "+e.getMessage());
+            }
+        }
+        finally {
+            APITrace.end();
+        }
+    }
+
+    private String getComputeIDFromResourcePool(@Nonnull String resourcePoolID) throws InternalException, CloudException {
+        APITrace.begin(provider, "Volumes.findResourcePool");
+        try {
+            try {
+                VirtustreamMethod method = new VirtustreamMethod(provider);
+                String obj = method.getString("/ResourcePool/"+resourcePoolID+"?$filter=IsRemoved eq false", "Volumes.findResourcePool");
+
+                if (obj != null && obj.length() > 0) {
+                    JSONObject json = new JSONObject(obj);
+
+                    String computeId = json.getString("ComputeResourceID");
+                    return computeId;
+                }
+                logger.error("No available resource pool with id "+resourcePoolID);
+                throw new CloudException("No available resource pool with id "+resourcePoolID);
+            }
+            catch (JSONException e) {
+                logger.error(e);
+                throw new InternalException("Unable to parse JSONObject "+e.getMessage());
+            }
+        }
+        finally {
+            APITrace.end();
         }
     }
 }
