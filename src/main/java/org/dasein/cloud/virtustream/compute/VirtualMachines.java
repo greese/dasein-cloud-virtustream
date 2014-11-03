@@ -93,157 +93,67 @@ public class VirtualMachines extends AbstractVMSupport {
         this.provider = provider;
     }
 
-    @Override
-    public VirtualMachine alterVirtualMachine(@Nonnull String vmId, @Nonnull VMScalingOptions options) throws InternalException, CloudException {
+   @Override
+    public VirtualMachine alterVirtualMachineSize(@Nonnull String virtualMachineId, @Nullable String cpuCount, @Nullable String ramInMB) throws InternalException, CloudException {
         APITrace.begin(provider, ALTER_VM);
         try {
-            VirtualMachine vm = getVirtualMachine(vmId);
+            VirtualMachine vm = getVirtualMachine(virtualMachineId);
             if (vm == null) {
-                throw new InternalException("Vm with id "+vmId+" does not exist.");
+                throw new InternalException("Vm with id "+virtualMachineId+" does not exist.");
             }
-            String body = options.getProviderProductId();
-            String[] parts = body.split("\\[");
             VirtustreamMethod method = new VirtustreamMethod(provider);
 
-            String productId = parts[0];
-            VirtualMachineProduct vmProduct = getProduct(productId);
-            int cpuCore = vmProduct.getCpuCount();
-            Storage<Megabyte> ramSize = vmProduct.getRamSize();
-            long ramAllocated = ramSize.longValue();
+            int cpuCore = Integer.parseInt(cpuCount);
+            long ramAllocated = Long.parseLong(ramInMB);
 
-            if (!vm.getProductId().equals(productId)) {
-                //Reconfigure VM
-                //may need to stop vm first
-                VmState state = vm.getCurrentState();
-                boolean restart = false;
-                if (!state.equals(VmState.STOPPED)) {
-                    restart = true;
-                    stop(vmId, true);
-                    vm = getVirtualMachine(vmId);
-                    while (!vm.getCurrentState().equals(VmState.STOPPED)) {
-                        try {
-                            Thread.sleep(15000L);
-                        }
-                        catch (InterruptedException ignore) {}
-                        vm = getVirtualMachine(vmId);
+            //Reconfigure VM
+            //may need to stop vm first
+            VmState state = vm.getCurrentState();
+            boolean restart = false;
+            if (!state.equals(VmState.STOPPED)) {
+                restart = true;
+                stop(virtualMachineId, true);
+                vm = getVirtualMachine(virtualMachineId);
+                while (!vm.getCurrentState().equals(VmState.STOPPED)) {
+                    try {
+                        Thread.sleep(15000L);
                     }
+                    catch (InterruptedException ignore) {}
+                    vm = getVirtualMachine(virtualMachineId);
                 }
+            }
 
-                JSONObject json = new JSONObject();
+            JSONObject json = new JSONObject();
+            try {
+                // create json request
+                json.put("VirtualMachineID", virtualMachineId);
+                json.put("NumCpu", cpuCore);
+                json.put("RamAllocatedMB", ramAllocated);
+                json.put("ResourcePoolID", vm.getTag("ResourcePoolID"));
+            }
+            catch (JSONException e) {
+                logger.error(e);
+                throw new InternalException("Unable to parse JSON "+e.getMessage());
+            }
+
+            String obj = method.postString("/VirtualMachine/ReconfigureVM", json.toString(), ALTER_VM);
+            if (obj != null && obj.length() > 0) {
                 try {
-                    // create json request
-                    json.put("VirtualMachineID", vmId);
-                    json.put("NumCpu", cpuCore);
-                    json.put("RamAllocatedMB", ramAllocated);
-                    json.put("ResourcePoolID", vm.getTag("ResourcePoolID"));
+                    json = new JSONObject(obj);
+                    if (provider.parseTaskId(json) == null) {
+                        logger.warn("No confirmation of ReconfigureVM task completion but no error either");
+                    }
                 }
                 catch (JSONException e) {
                     logger.error(e);
                     throw new InternalException("Unable to parse JSON "+e.getMessage());
                 }
-
-                String obj = method.postString("/VirtualMachine/ReconfigureVM", json.toString(), ALTER_VM);
-                if (obj != null && obj.length() > 0) {
-                    try {
-                        json = new JSONObject(obj);
-                        if (provider.parseTaskId(json) == null) {
-                            logger.warn("No confirmation of ReconfigureVM task completion but no error either");
-                        }
-                    }
-                    catch (JSONException e) {
-                        logger.error(e);
-                        throw new InternalException("Unable to parse JSON "+e.getMessage());
-                    }
-                }
-                if (restart) {
-                    start(vmId);
-                }
+            }
+            if (restart) {
+                start(virtualMachineId);
             }
 
-            if (parts.length > 1) {
-                String dataCenterID = vm.getProviderDataCenterId();
-                DataCenter dc = provider.getDataCenterServices().getDataCenter(dataCenterID);
-
-                String volumeString = parts[1].substring(0, parts[1].length()-1);
-                String[] volumes = volumeString.split(",");
-                for (String v : volumes) {
-                    String[] details = v.split(":");
-                    if (details.length==2 ) {
-                        String volumeId = details[0];
-                        String sizeinGB = details[1];
-                        Storage<Gigabyte> size = new Storage<Gigabyte>(Integer.parseInt(sizeinGB), Storage.GIGABYTE);
-                        Storage<Kilobyte> capacity = (Storage<Kilobyte>)size.convertTo(Storage.KILOBYTE);
-                        long capacityKB = capacity.longValue();
-
-                        //find a suitable storage location for the hard disk based on the vms resource pool id
-                        storageComputeId = getComputeIDFromResourcePool(vm.getTag("ResourcePoolID").toString());
-                        String storageId = findAvailableStorage(capacityKB, dc);
-                        if (storageId == null) {
-                            logger.error("No available storage resource in datacenter "+dc.getName());
-                            throw new CloudException("No available storage resource in datacenter "+dc.getName());
-                        }
-
-                        if (volumeId.equals("new")) {
-                            //add new disk
-                            JSONObject disk = new JSONObject();
-                            try {
-                                disk.put("StorageID", storageId);
-                                disk.put("CapacityKB", capacityKB);
-                                disk.put("VirtualMachineID", vmId);
-                            }
-                            catch (JSONException e) {
-                                logger.error(e);
-                                throw new InternalException("Unable to parse JSON "+e.getMessage());
-                            }
-                            String obj = method.postString("VirtualMachine/AddDisk", disk.toString(), ALTER_VM);
-                            if (obj != null && obj.length() > 0) {
-                                try {
-                                    JSONObject response = new JSONObject(obj);
-                                    if (provider.parseTaskId(response) == null) {
-                                        logger.warn("No confirmation of AddDisk task completion but no error either");
-                                    }
-                                }
-                                catch (JSONException e) {
-                                    logger.error(e);
-                                    throw new InternalException("Unable to parse JSON "+e.getMessage());
-                                }
-                            }
-                        }
-                        else {
-                            //reconfigure disk
-                            JSONObject disk = new JSONObject();
-                            try {
-                                disk.put("VirtualMachineDiskID", volumeId);
-                                disk.put("StorageID", storageId);
-                                disk.put("CapacityKB", capacityKB);
-                                disk.put("VirtualMachineID", vmId);
-                            }
-                            catch (JSONException e) {
-                                logger.error(e);
-                                throw new InternalException("Unable to parse JSON "+e.getMessage());
-                            }
-                            String obj = method.postString("VirtualMachine/ReconfigureDisk", disk.toString(), ALTER_VM);
-                            if (obj != null && obj.length() > 0) {
-                                try {
-                                    JSONObject response = new JSONObject(obj);
-                                    if (provider.parseTaskId(response) == null) {
-                                        logger.warn("No confirmation of ReconfigureDisk task completion but no error either");
-                                    }
-                                }
-                                catch (JSONException e) {
-                                    logger.error(e);
-                                    throw new InternalException("Unable to parse JSON "+e.getMessage());
-                                }
-                            }
-                        }
-                    }
-                    else {
-                        throw new InternalException("Volume string must take format <id>:<sizeInGB>. NB id is 'new' if adding new disk");
-                    }
-                }
-            }
-
-            return getVirtualMachine(vmId);
+            return getVirtualMachine(virtualMachineId);
         }
         finally {
             APITrace.end();
@@ -1262,32 +1172,6 @@ public class VirtualMachines extends AbstractVMSupport {
             }
             return list;
 
-        }
-        finally {
-            APITrace.end();
-        }
-    }
-
-    private String getComputeIDFromResourcePool(@Nonnull String resourcePoolID) throws InternalException, CloudException {
-        APITrace.begin(provider, FIND_RESOURCE_POOL);
-        try {
-            try {
-                VirtustreamMethod method = new VirtustreamMethod(provider);
-                String obj = method.getString("/ResourcePool/"+resourcePoolID+"?$filter=IsRemoved eq false", FIND_RESOURCE_POOL);
-
-                if (obj != null && obj.length() > 0) {
-                    JSONObject json = new JSONObject(obj);
-
-                    String computeId = json.getString("ComputeResourceID");
-                    return computeId;
-                }
-                logger.error("No available resource pool with id "+resourcePoolID);
-                throw new CloudException("No available resource pool with id "+resourcePoolID);
-            }
-            catch (JSONException e) {
-                logger.error(e);
-                throw new InternalException("Unable to parse JSONObject "+e.getMessage());
-            }
         }
         finally {
             APITrace.end();
