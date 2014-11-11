@@ -262,6 +262,39 @@ public class Templates extends AbstractImageSupport<Virtustream> {
 
     @Nonnull
     @Override
+    public Iterable<MachineImage> listImagesAllRegions(@Nullable ImageFilterOptions options) throws CloudException, InternalException {
+        APITrace.begin(getProvider(), "listAllImages");
+        try {
+            VirtustreamMethod method = new VirtustreamMethod(getProvider());
+            List<MachineImage> list = new ArrayList<MachineImage>();
+            String obj = method.getString("VirtualMachine?$filter=IsTemplate eq true and IsRemoved eq false and TenantID eq '"+getContext().getAccountNumber()+"'", LIST_IMAGES);
+            if (obj != null && obj.length() > 0) {
+                JSONArray json = null;
+                try {
+                    json = new JSONArray(obj);
+                    for (int i=0; i<json.length(); i++) {
+                        MachineImage img = toImage(json.getJSONObject(i));
+
+                        if (img != null && (options == null || options.matches(img))) {
+                            list.add(img);
+                        }
+                    }
+                }
+                catch (JSONException e) {
+                    logger.error(e);
+                    throw new InternalException("Unable to parse JSON "+e.getMessage());
+                }
+            }
+            return list;
+
+        }
+        finally {
+            APITrace.end();
+        }
+    }
+
+    @Nonnull
+    @Override
     public Iterable<MachineImage> listImages(@Nullable ImageFilterOptions options) throws CloudException, InternalException {
         APITrace.begin(getProvider(), GET_IMAGE);
         try {
@@ -276,7 +309,9 @@ public class Templates extends AbstractImageSupport<Virtustream> {
                         MachineImage img = toImage(json.getJSONObject(i));
 
                         if (img != null && (options == null || options.matches(img))) {
-                            list.add(img);
+                            if (img.getProviderRegionId().equals(getContext().getRegionId())) {
+                                list.add(img);
+                            }
                         }
                     }
                 }
@@ -444,11 +479,6 @@ public class Templates extends AbstractImageSupport<Virtustream> {
             if (regionId == null) {
                 logger.error("Unable to find region id for template "+imageId);
                 return null;
-            }
-            else {
-                if (!regionId.equals(getContext().getRegionId())) {
-                    return null;
-                }
             }
             if (name == null) {
                 name = imageId;
