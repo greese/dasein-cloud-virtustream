@@ -24,6 +24,7 @@ import org.apache.log4j.Logger;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.ResourceStatus;
+import org.dasein.cloud.Tag;
 import org.dasein.cloud.network.AbstractVLANSupport;
 import org.dasein.cloud.network.InternetGateway;
 import org.dasein.cloud.network.IPVersion;
@@ -228,6 +229,11 @@ public class Networks extends AbstractVLANSupport {
 
     @Override
     public void removeInternetGatewayById(@Nonnull String id) throws CloudException, InternalException {
+        //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    @Override
+    public void updateInternetGatewayTags(@Nonnull String internetGatewayId, @Nonnull Tag... tags) throws CloudException, InternalException {
         //To change body of implemented methods use File | Settings | File Templates.
     }
 
