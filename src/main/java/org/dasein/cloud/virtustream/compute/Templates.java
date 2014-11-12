@@ -276,7 +276,17 @@ public class Templates extends AbstractImageSupport<Virtustream> {
                         MachineImage img = toImage(json.getJSONObject(i));
 
                         if (img != null && (options == null || options.matches(img))) {
-                            list.add(img);
+                            if (options != null) {
+                                if (options.getWithAllRegions()) {
+                                    list.add(img);
+                                }
+                                else if (img.getProviderRegionId().equals(getContext().getRegionId())) {
+                                    list.add(img);
+                                }
+                            }
+                            else {
+                                list.add(img);
+                            }
                         }
                     }
                 }
@@ -444,11 +454,6 @@ public class Templates extends AbstractImageSupport<Virtustream> {
             if (regionId == null) {
                 logger.error("Unable to find region id for template "+imageId);
                 return null;
-            }
-            else {
-                if (!regionId.equals(getContext().getRegionId())) {
-                    return null;
-                }
             }
             if (name == null) {
                 name = imageId;
