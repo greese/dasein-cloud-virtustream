@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2012-2013 Dell, Inc.
+ * Copyright (C) 2012-2014 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -24,6 +24,7 @@ import org.apache.log4j.Logger;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.ResourceStatus;
+import org.dasein.cloud.Tag;
 import org.dasein.cloud.network.AbstractVLANSupport;
 import org.dasein.cloud.network.InternetGateway;
 import org.dasein.cloud.network.IPVersion;
@@ -41,6 +42,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Locale;
 
 public class Networks extends AbstractVLANSupport {
@@ -148,7 +150,7 @@ public class Networks extends AbstractVLANSupport {
     @Nonnull
     @Override
     public Collection<InternetGateway> listInternetGateways(@Nullable String vlanId) throws CloudException, InternalException {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
+        return Collections.emptyList();
     }
 
     @Nonnull
@@ -230,6 +232,11 @@ public class Networks extends AbstractVLANSupport {
         //To change body of implemented methods use File | Settings | File Templates.
     }
 
+    @Override
+    public void updateInternetGatewayTags(@Nonnull String internetGatewayId, @Nonnull Tag... tags) throws CloudException, InternalException {
+        //To change body of implemented methods use File | Settings | File Templates.
+    }
+
     private VLAN toVlan(@Nonnull JSONObject json) throws InternalException, CloudException {
         try{
             VLAN vlan = new VLAN();
@@ -286,8 +293,11 @@ public class Networks extends AbstractVLANSupport {
 
             if (json.has("ComputeResourceIDs") && !json.isNull("ComputeResourceIDs")) {
                 JSONArray list = json.getJSONArray("ComputeResourceIDs");
-                String computeResourceID =  list.getString(0);
-                vlan.setTag("computeResourceID", computeResourceID);
+                vlan.setTag("numComputeIds", Integer.toString(list.length()));
+                for ( int i = 0; i<list.length(); i++) {
+                    String computeResourceID =  list.getString(i);
+                    vlan.setTag("computeResourceID"+i, computeResourceID);
+                }
             }
 
             if (vlan.getName() == null) {

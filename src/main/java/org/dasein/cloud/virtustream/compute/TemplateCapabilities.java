@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2012-2013 Dell, Inc.
+ * Copyright (C) 2012-2014 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -19,10 +19,7 @@
 
 package org.dasein.cloud.virtustream.compute;
 
-import org.dasein.cloud.AbstractCapabilities;
-import org.dasein.cloud.CloudException;
-import org.dasein.cloud.InternalException;
-import org.dasein.cloud.Requirement;
+import org.dasein.cloud.*;
 import org.dasein.cloud.compute.ImageCapabilities;
 import org.dasein.cloud.compute.ImageClass;
 import org.dasein.cloud.compute.MachineImageFormat;
@@ -31,6 +28,7 @@ import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.virtustream.Virtustream;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Locale;
@@ -66,6 +64,12 @@ public class TemplateCapabilities extends AbstractCapabilities<Virtustream> impl
     @Override
     public String getProviderTermForCustomImage(@Nonnull Locale locale, @Nonnull ImageClass cls) {
         return getProviderTermForImage(locale, cls);
+    }
+
+    @Nullable
+    @Override
+    public VisibleScope getImageVisibleScope() {
+        return null;
     }
 
     @Nonnull
@@ -112,6 +116,11 @@ public class TemplateCapabilities extends AbstractCapabilities<Virtustream> impl
     }
 
     @Override
+    public boolean supportsImageCopy() throws CloudException, InternalException {
+        return false;
+    }
+
+    @Override
     public boolean supportsImageSharing() throws CloudException, InternalException {
         return false;
     }
@@ -119,6 +128,11 @@ public class TemplateCapabilities extends AbstractCapabilities<Virtustream> impl
     @Override
     public boolean supportsImageSharingWithPublic() throws CloudException, InternalException {
         return false;
+    }
+
+    @Override
+    public boolean supportsListingAllRegions() throws CloudException, InternalException {
+        return true;
     }
 
     @Override

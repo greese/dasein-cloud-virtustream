@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2012-2013 Dell, Inc.
+ * Copyright (C) 2012-2014 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -174,7 +174,7 @@ public class Virtustream extends AbstractCloud {
         }
     }
 
-    public String parseTaskID(@Nonnull JSONObject response) throws InternalException, CloudException {
+    public String parseTaskId( @Nonnull JSONObject response ) throws InternalException, CloudException {
         try {
             if (response.has("Headers") && !response.isNull("Headers")) {
                 JSONObject headers = response.getJSONObject("Headers");
@@ -250,7 +250,7 @@ public class Virtustream extends AbstractCloud {
         }
     }
 
-    public String parseStorageTaskID(@Nonnull JSONObject response) throws InternalException, CloudException {
+    public String parseStorageTaskId( @Nonnull JSONObject response ) throws InternalException, CloudException {
         try {
             if (response.has("QueuedMessageId") && !response.isNull("QueuedMessageId")) {
                 String taskId = response.getString("QueuedMessageId");

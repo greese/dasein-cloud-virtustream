@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2012-2013 Dell, Inc.
+ * Copyright (C) 2012-2014 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -19,11 +19,7 @@
 
 package org.dasein.cloud.virtustream.compute;
 
-import org.dasein.cloud.AbstractCapabilities;
-import org.dasein.cloud.Capabilities;
-import org.dasein.cloud.CloudException;
-import org.dasein.cloud.InternalException;
-import org.dasein.cloud.Requirement;
+import org.dasein.cloud.*;
 import org.dasein.cloud.compute.Architecture;
 import org.dasein.cloud.compute.ImageClass;
 import org.dasein.cloud.compute.Platform;
@@ -120,13 +116,23 @@ public class VMCapabilities extends AbstractCapabilities<Virtustream> implements
     @Nullable
     @Override
     public VMScalingCapabilities getVerticalScalingCapabilities() throws CloudException, InternalException {
-        return VMScalingCapabilities.getInstance(false, true, Requirement.NONE, Requirement.REQUIRED);
+        return VMScalingCapabilities.getInstance(false, false, true);
     }
 
     @Nonnull
     @Override
     public NamingConstraints getVirtualMachineNamingConstraints() throws CloudException, InternalException {
         return NamingConstraints.getAlphaNumeric(1, 100);
+    }
+
+    @Nullable
+    @Override
+    public VisibleScope getVirtualMachineVisibleScope() {
+        return null;
+    }
+
+    @Nullable @Override public VisibleScope getVirtualMachineProductVisibleScope() {
+        return null;
     }
 
     @Nonnull
@@ -197,6 +203,11 @@ public class VMCapabilities extends AbstractCapabilities<Virtustream> implements
         return false;
     }
 
+    @Override
+    public boolean isUserDefinedPrivateIPSupported() throws CloudException, InternalException {
+        return false;
+    }
+
     @Nonnull
     @Override
     public Iterable<Architecture> listSupportedArchitectures() throws InternalException, CloudException {
@@ -204,5 +215,60 @@ public class VMCapabilities extends AbstractCapabilities<Virtustream> implements
         list.add(Architecture.I32);
         list.add(Architecture.I64);
         return list;
+    }
+
+    @Override
+    public boolean supportsSpotVirtualMachines() throws InternalException, CloudException {
+        return false;
+    }
+
+    @Override
+    public boolean supportsAlterVM() {
+        return true;
+    }
+
+    @Override
+    public boolean supportsClone() {
+        return true;
+    }
+
+    @Override
+    public boolean supportsPause() {
+        return false;
+    }
+
+    @Override
+    public boolean supportsReboot() {
+        return true;
+    }
+
+    @Override
+    public boolean supportsResume() {
+        return true;
+    }
+
+    @Override
+    public boolean supportsStart() {
+        return true;
+    }
+
+    @Override
+    public boolean supportsStop() {
+        return true;
+    }
+
+    @Override
+    public boolean supportsSuspend() {
+        return true;
+    }
+
+    @Override
+    public boolean supportsTerminate() {
+        return true;
+    }
+
+    @Override
+    public boolean supportsUnPause() {
+        return false;
     }
 }

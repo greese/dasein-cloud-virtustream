@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2012-2013 Dell, Inc.
+ * Copyright (C) 2012-2014 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -29,6 +29,7 @@ import org.dasein.cloud.compute.VolumeCapabilities;
 import org.dasein.cloud.compute.VolumeFormat;
 import org.dasein.cloud.util.Cache;
 import org.dasein.cloud.util.CacheLevel;
+import org.dasein.cloud.util.NamingConstraints;
 import org.dasein.cloud.virtustream.Virtustream;
 import org.dasein.util.uom.storage.Gigabyte;
 import org.dasein.util.uom.storage.Storage;
@@ -65,6 +66,26 @@ public class VSVolumeCapabilities extends AbstractCapabilities<Virtustream> impl
         return -2;
     }
 
+    @Override
+    public int getMaximumVolumeProductIOPS() throws InternalException, CloudException {
+        return LIMIT_UNKNOWN;
+    }
+
+    @Override
+    public int getMinimumVolumeProductIOPS() throws InternalException, CloudException {
+        return LIMIT_UNKNOWN;
+    }
+
+    @Override
+    public int getMaximumVolumeSizeIOPS() throws InternalException, CloudException {
+        return LIMIT_UNKNOWN;
+    }
+
+    @Override
+    public int getMinimumVolumeSizeIOPS() throws InternalException, CloudException {
+        return LIMIT_UNKNOWN;
+    }
+
     @Nullable
     @Override
     public Storage<Gigabyte> getMaximumVolumeSize() throws InternalException, CloudException {
@@ -75,6 +96,12 @@ public class VSVolumeCapabilities extends AbstractCapabilities<Virtustream> impl
     @Override
     public Storage<Gigabyte> getMinimumVolumeSize() throws InternalException, CloudException {
         return new Storage<Gigabyte>(1, Storage.GIGABYTE);
+    }
+
+    @Nonnull
+    @Override
+    public NamingConstraints getVolumeNamingConstraints() throws CloudException, InternalException {
+        return null;
     }
 
     @Nonnull
@@ -123,15 +150,15 @@ public class VSVolumeCapabilities extends AbstractCapabilities<Virtustream> impl
                 list.add("hdj");
             }
             else {
-                list.add("/dev/xvda");
-                list.add("/dev/xvdb");
-                list.add("/dev/xvdc");
-                list.add("/dev/xvde");
-                list.add("/dev/xvdf");
-                list.add("/dev/xvdg");
-                list.add("/dev/xvdh");
-                list.add("/dev/xvdi");
-                list.add("/dev/xvdj");
+                list.add("sda1");
+                list.add("sda2");
+                list.add("sda3");
+                list.add("sda4");
+                list.add("sda5");
+                list.add("sda6");
+                list.add("sda7");
+                list.add("sda8");
+                list.add("sda9");
             }
             ids = Collections.unmodifiableList(list);
             cache.put(getContext(), ids);

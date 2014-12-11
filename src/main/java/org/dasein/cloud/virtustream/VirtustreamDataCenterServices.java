@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2012-2013 Dell, Inc.
+ * Copyright (C) 2012-2014 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -23,9 +23,7 @@ import org.apache.log4j.Logger;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.ProviderContext;
-import org.dasein.cloud.dc.DataCenter;
-import org.dasein.cloud.dc.DataCenterServices;
-import org.dasein.cloud.dc.Region;
+import org.dasein.cloud.dc.*;
 import org.dasein.cloud.util.APITrace;
 import org.dasein.cloud.util.Cache;
 import org.dasein.cloud.util.CacheLevel;
@@ -38,6 +36,7 @@ import org.json.JSONObject;
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Locale;
 
 public class VirtustreamDataCenterServices implements DataCenterServices {
@@ -51,6 +50,16 @@ public class VirtustreamDataCenterServices implements DataCenterServices {
     private Virtustream provider;
 
     public VirtustreamDataCenterServices(Virtustream provider) { this.provider = provider; }
+
+    private transient volatile VirtustreamDataCenterCapabilities capabilities;
+    @Nonnull
+    @Override
+    public DataCenterCapabilities getCapabilities() throws InternalException, CloudException {
+        if( capabilities == null ) {
+            capabilities = new VirtustreamDataCenterCapabilities(provider);
+        }
+        return capabilities;
+    }
 
     @Override
     public DataCenter getDataCenter(String providerDataCenterId) throws InternalException, CloudException {
@@ -277,5 +286,35 @@ public class VirtustreamDataCenterServices implements DataCenterServices {
             logger.error(e);
             throw new InternalException("Unable to parse JSONObject "+e.getMessage());
         }
+    }
+
+    @Override
+    public Collection<ResourcePool> listResourcePools(String providerDataCenterId) throws InternalException, CloudException {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public ResourcePool getResourcePool(String providerResourcePoolId) throws InternalException, CloudException {
+        return null;
+    }
+
+    @Override
+    public Collection<StoragePool> listStoragePools() throws InternalException, CloudException {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public @Nonnull StoragePool getStoragePool( String providerStoragePoolId ) throws InternalException, CloudException {
+        throw new CloudException(provider.getCloudName() + " does not support storage pools.");
+    }
+
+    @Override
+    public @Nonnull Collection<Folder> listVMFolders() throws InternalException, CloudException {
+        throw new CloudException(provider.getCloudName() + " does not support VM folders.");
+    }
+
+    @Override
+    public @Nonnull Folder getVMFolder( String providerVMFolderId ) throws InternalException, CloudException {
+        throw new CloudException(provider.getCloudName() + " does not support VM folders.");
     }
 }
