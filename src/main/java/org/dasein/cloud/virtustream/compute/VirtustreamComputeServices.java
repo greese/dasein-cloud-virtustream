@@ -25,28 +25,26 @@ import org.dasein.cloud.virtustream.Virtustream;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public class VirtustreamComputeServices extends AbstractComputeServices {
-    private Virtustream cloud = null;
-
+public class VirtustreamComputeServices extends AbstractComputeServices<Virtustream> {
     public VirtustreamComputeServices(@Nonnull Virtustream cloud) {
-        this.cloud = cloud;
+        super(cloud);
     }
 
     @Nullable
     @Override
     public Templates getImageSupport() {
-        return new Templates(cloud);
+        return new Templates(getProvider());
     }
 
     @Nullable
     @Override
     public VirtualMachines getVirtualMachineSupport() {
-        return new VirtualMachines(cloud);
+        return new VirtualMachines(getProvider());
     }
 
     @Nullable
     @Override
     public Volumes getVolumeSupport() {
-        return new Volumes(cloud);
+        return new Volumes(getProvider());
     }
 }
