@@ -106,6 +106,9 @@ public class TemplateCapabilities extends AbstractCapabilities<Virtustream> impl
     }
 
     @Override
+    public boolean imageCaptureDestroysVM() throws InternalException, CloudException {return false;}
+
+    @Override
     public boolean supportsDirectImageUpload() throws CloudException, InternalException {
         return false;
     }
