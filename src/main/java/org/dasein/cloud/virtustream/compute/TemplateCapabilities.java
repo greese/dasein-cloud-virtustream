@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2012-2014 Dell, Inc.
+ * Copyright (C) 2012-2015 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -104,6 +104,9 @@ public class TemplateCapabilities extends AbstractCapabilities<Virtustream> impl
     public Iterable<MachineImageType> listSupportedImageTypes() throws CloudException, InternalException {
         return Collections.singletonList(MachineImageType.VOLUME);
     }
+
+    @Override
+    public boolean imageCaptureDestroysVM() throws InternalException, CloudException {return false;}
 
     @Override
     public boolean supportsDirectImageUpload() throws CloudException, InternalException {

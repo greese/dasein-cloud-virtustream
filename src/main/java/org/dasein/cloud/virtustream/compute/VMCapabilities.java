@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2012-2014 Dell, Inc.
+ * Copyright (C) 2012-2015 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -216,6 +216,15 @@ public class VMCapabilities extends AbstractCapabilities<Virtustream> implements
         list.add(Architecture.I64);
         return list;
     }
+
+    @Override
+    public boolean isVMProductDCConstrained() throws InternalException, CloudException {return false;}
+
+    @Override
+    public boolean supportsCloudStoredShellKey() throws InternalException, CloudException {return false;}
+
+    @Override
+    public boolean supportsClientRequestToken() throws InternalException, CloudException {return false;}
 
     @Override
     public boolean supportsSpotVirtualMachines() throws InternalException, CloudException {
