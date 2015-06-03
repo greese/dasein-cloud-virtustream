@@ -22,6 +22,7 @@ package org.dasein.cloud.virtustream.network;
 import org.dasein.cloud.*;
 import org.dasein.cloud.network.IPVersion;
 import org.dasein.cloud.network.VLANCapabilities;
+import org.dasein.cloud.util.NamingConstraints;
 import org.dasein.cloud.virtustream.Virtustream;
 
 import javax.annotation.Nonnull;
@@ -174,5 +175,10 @@ public class NetworkCapabilities extends AbstractCapabilities<Virtustream> imple
     @Override
     public boolean supportsRawAddressRouting() throws CloudException, InternalException {
         return false;
+    }
+
+    @Override
+    public NamingConstraints getVlanNamingConstraints(){
+        return NamingConstraints.getAlphaNumeric(1, 100);
     }
 }

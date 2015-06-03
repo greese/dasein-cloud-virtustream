@@ -24,10 +24,13 @@ import org.dasein.cloud.virtustream.Virtustream;
 
 import javax.annotation.Nullable;
 
-public class VirtustreamStorageServices extends AbstractStorageServices{
+public class VirtustreamStorageServices extends AbstractStorageServices<Virtustream>{
     private Virtustream provider;
 
-    public VirtustreamStorageServices(Virtustream provider) { this.provider = provider; }
+    public VirtustreamStorageServices(Virtustream provider) {
+        super(provider);
+        this.provider = provider;
+    }
 
     @Nullable
     @Override
