@@ -25,10 +25,11 @@ import org.dasein.cloud.virtustream.Virtustream;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public class VirtustreamNetworkServices extends AbstractNetworkServices {
+public class VirtustreamNetworkServices extends AbstractNetworkServices<Virtustream> {
     private Virtustream cloud = null;
 
     public VirtustreamNetworkServices(@Nonnull Virtustream cloud) {
+        super(cloud);
         this.cloud = cloud;
     }
 

@@ -25,6 +25,7 @@ import org.dasein.cloud.compute.ImageClass;
 import org.dasein.cloud.compute.MachineImageFormat;
 import org.dasein.cloud.compute.MachineImageType;
 import org.dasein.cloud.compute.VmState;
+import org.dasein.cloud.util.NamingConstraints;
 import org.dasein.cloud.virtustream.Virtustream;
 
 import javax.annotation.Nonnull;
@@ -141,5 +142,10 @@ public class TemplateCapabilities extends AbstractCapabilities<Virtustream> impl
     @Override
     public boolean supportsPublicLibrary(@Nonnull ImageClass cls) throws CloudException, InternalException {
         return true;
+    }
+
+    @Override
+    public NamingConstraints getImageNamingConstraints(){
+        return NamingConstraints.getAlphaNumeric(1, 100);
     }
 }

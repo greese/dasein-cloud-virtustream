@@ -177,4 +177,9 @@ public class VSVolumeCapabilities extends AbstractCapabilities<Virtustream> impl
     public Requirement requiresVMOnCreate() throws InternalException, CloudException {
         return Requirement.REQUIRED;
     }
+
+    @Override
+    public @Nonnull Requirement getDeviceIdOnAttachRequirement(){
+        return Requirement.REQUIRED;
+    }
 }

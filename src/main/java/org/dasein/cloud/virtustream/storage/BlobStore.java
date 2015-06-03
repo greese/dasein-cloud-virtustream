@@ -26,6 +26,7 @@ import org.dasein.cloud.OperationNotSupportedException;
 import org.dasein.cloud.identity.ServiceAction;
 import org.dasein.cloud.storage.AbstractBlobStoreSupport;
 import org.dasein.cloud.storage.Blob;
+import org.dasein.cloud.storage.BlobStoreCapabilities;
 import org.dasein.cloud.storage.FileTransfer;
 import org.dasein.cloud.util.APITrace;
 import org.dasein.cloud.util.NamingConstraints;
@@ -75,6 +76,16 @@ public class BlobStore extends AbstractBlobStoreSupport<Virtustream> {
     static private final String UPLOAD_FILE                     =   "Blob.uploadFile";
 
     public BlobStore(Virtustream provider) { super(provider); }
+
+    private transient volatile BlobStoreCapabilities capabilities;
+
+    @Override
+    public BlobStoreCapabilities getCapabilities() throws InternalException, CloudException{
+        if(capabilities == null){
+            capabilities = new VirtustreamBlobStoreCapabilities(getProvider());
+        }
+        return capabilities;
+    }
 
 
     @Override
