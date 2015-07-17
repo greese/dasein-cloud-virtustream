@@ -64,7 +64,7 @@ public class VMCapabilities extends AbstractCapabilities<Virtustream> implements
 
     @Override
     public boolean canReboot(@Nonnull VmState fromState) throws CloudException, InternalException {
-        return true;
+        return VmState.RUNNING.equals(fromState);
     }
 
     @Override
